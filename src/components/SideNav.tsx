@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BrandLogo } from '@/components/BrandLogo';
 import { useAccountInfo } from '@/hooks/useCatalog';
 import { useActiveProfile } from '@/store/profiles';
 import { colors, radius, spacing, tvFocus } from '@/theme';
@@ -31,9 +31,7 @@ export function SideNav({ state, descriptors, emitter, navigateToTab, width }: B
   return (
     <View style={[styles.rail, { width, paddingTop: insets.top + (isTV ? spacing.lg : spacing.xl), paddingBottom: insets.bottom + spacing.lg }]}>
       <View style={[styles.brand, isTV && styles.brandTV]}>
-        <LinearGradient colors={['#5B8CFF', '#3A5BFF']} style={[styles.logo, isTV && styles.logoTV]}>
-          <Ionicons name="play" size={22} color="#fff" style={{ marginLeft: 3 }} />
-        </LinearGradient>
+        <BrandLogo size={isTV ? 38 : 52} />
         <Text style={styles.brandText}>Lumen</Text>
       </View>
 
@@ -124,9 +122,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   brand: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xxl },
-  logo: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   brandTV: { flexDirection: 'row', justifyContent: 'center', marginBottom: spacing.lg },
-  logoTV: { width: 36, height: 36, borderRadius: 10 },
   itemTV: { paddingVertical: spacing.sm },
   brandText: { color: colors.text, fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },
   items: { flex: 1, gap: spacing.xs },

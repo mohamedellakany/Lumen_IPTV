@@ -10,12 +10,10 @@ import { Artwork } from '@/components/Artwork';
 import { IconButton } from '@/components/Button';
 import { ExitDialog } from '@/components/ExitDialog';
 import { PosterCard } from '@/components/PosterCard';
-import { ProgressBar } from '@/components/ProgressBar';
 import { Rail } from '@/components/Rail';
 import { useAccountInfo, useCatalog, useMovieInfo, useSeriesInfo, recency, useRefreshCatalog, type RefreshResult } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
 import { rememberFocus, useRememberedFocus } from '@/hooks/useRememberedFocus';
-import { inProgressFraction, keyOf, useLibrary, type MediaRef } from '@/store/library';
 import { useActiveProfile } from '@/store/profiles';
 import { colors, radius, spacing, tvFocus } from '@/theme';
 import { daysUntil, initials } from '@/utils/format';
@@ -33,7 +31,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const profile = useActiveProfile();
   const { width, height, railPoster, isWide, isTV, navWidth } = useLayout();
-  const library = useLibrary();
   const account = useAccountInfo();
   const live = useCatalog('live');
   const movies = useCatalog('movie');
@@ -55,25 +52,13 @@ export default function HomeScreen() {
     }, []),
   );
 
-  const continueWatching = useMemo(() => {
-    const seenSeries = new Set<string>();
-    return library.recents.filter((r) => {
-      if (r.kind !== 'movie' && r.kind !== 'episode') return false;
-      if (inProgressFraction(library.progress[keyOf(r)]) === undefined) return false;
-      if (r.kind === 'episode') {
-        if (seenSeries.has(r.seriesId ?? '')) return false;
-        seenSeries.add(r.seriesId ?? '');
-      }
-      return true;
-    });
-  }, [library]);
-
-  const favorites = useMemo(
-    () => Object.values(library.favorites).sort((a, b) => b.addedAt - a.addedAt).slice(0, 30),
-    [library.favorites],
-  );
   const latestMovies = useMemo(() => [...movies.items].sort((a, b) => recency(b) - recency(a)).slice(0, 20), [movies.items]);
   const latestSeries = useMemo(() => [...series.items].sort((a, b) => recency(b) - recency(a)).slice(0, 20), [series.items]);
+  // One "Recently Added" row: newest movies and series together, newest first.
+  const recentlyAdded = useMemo(
+    () => [...latestMovies, ...latestSeries].sort((a, b) => recency(b) - recency(a)).slice(0, 30),
+    [latestMovies, latestSeries],
+  );
 
   // Featured carousel: the newest titles that have artwork, movies first, topped up with series.
   const featured = useMemo<(Movie | Series)[]>(() => {
@@ -112,23 +97,36 @@ export default function HomeScreen() {
         : null;
 
   const count = (n: number, noun: string) => (loadingCatalog && !n ? 'Loading…' : `${n.toLocaleString()} ${noun}`);
-  const categories = [
-    { id: 'live', label: 'Live TV', icon: 'tv' as const, count: count(live.items.length, 'Channels'), route: '/live', gradient: ['#2F5BFF', '#132A7A'] as const },
-    { id: 'movies', label: 'Movies', icon: 'film' as const, count: count(movies.items.length, 'Titles'), route: '/movies', gradient: ['#8B3DFF', '#3E1689'] as const },
-    { id: 'series', label: 'Series', icon: 'albums' as const, count: count(series.items.length, 'Shows'), route: '/series', gradient: ['#13A08C', '#0D4A4A'] as const },
+  const categories: CategoryProps[] = [
+    { id: 'live', label: 'Live TV', icon: 'tv', count: count(live.items.length, 'Channels'), gradient: ['#3D7BFF', '#2449D8', '#101E6B'], route: '/live' },
+    { id: 'movies', label: 'Movies', icon: 'film', count: count(movies.items.length, 'Movies'), gradient: ['#B04DFF', '#7428E0', '#2E0E73'], route: '/movies' },
+    { id: 'series', label: 'Series', icon: 'albums', count: count(series.items.length, 'Shows'), gradient: ['#1BC7A5', '#0E8C80', '#073F45'], route: '/series' },
   ];
 
   const pad = isWide ? spacing.xl : spacing.lg;
-  const contentWidth = width - navWidth;
-  const heroHeight = isTV ? Math.round(height * 0.4) : isWide ? Math.round(Math.min(480, Math.max(340, height * 0.5))) : Math.round(Math.min(520, width * 1.15));
-  // Continue-watching cards are 16:9; about six fit across on desktop, like the rails below.
-  const wideCard = isWide ? Math.max(200, Math.floor((contentWidth - pad * 2 - spacing.md * 5) / 6)) : Math.round(railPoster * 1.7);
-  const posterWidth = railPoster;
-  // TV: the rails share whatever height is left under the hero and category cards.
-  const [tvRailsHeight, setTvRailsHeight] = useState(0);
+  const heroHeight = isWide ? Math.round(Math.min(480, Math.max(340, height * 0.5))) : Math.round(Math.min(520, width * 1.15));
+  // TV, tablets and large screens: the whole Home fits on one screen with no scrolling. Phones scroll.
+  const oneScreen = isTV || Math.min(width, height) >= 600;
+  // Measured sizes for the one-screen layout: the whole screen, and the space left for the hero.
+  const [screenHeight, setScreenHeight] = useState(0);
+  const [heroSpace, setHeroSpace] = useState(0);
+  // One-screen sizes scale with the screen: big category cards, then one row of posters.
+  const categoryHeight = oneScreen ? Math.min(170, Math.max(84, Math.round(screenHeight * 0.17))) : 140;
+  // Icon beside the text needs a wide card; narrower ones (phones, tablets held upright) stack it on top.
+  const categoryWidth = (width - navWidth - pad * 2 - spacing.md * 2) / 3;
+  const stackedCategories = categoryWidth < categoryHeight * 2.3;
+  const posterWidth = oneScreen ? Math.round(Math.min(300, Math.max(110, Math.round(screenHeight * 0.27))) / 1.5) : railPoster;
 
   const actions = (
     <View style={styles.actions}>
+      {status && oneScreen && (
+        <View style={[styles.statusPill, { borderColor: status.color }]}>
+          <Ionicons name={status.icon} size={14} color={status.color} />
+          <Text style={[styles.statusPillText, { color: status.color }]} numberOfLines={1}>
+            {status.text}
+          </Text>
+        </View>
+      )}
       {!isWide && <View style={{ flex: 1 }} />}
       <IconButton icon="search" label="Search" onPress={() => router.push('/search')} style={styles.actionButton} {...searchFocus} />
       {refreshing ? (
@@ -152,128 +150,62 @@ export default function HomeScreen() {
     </View>
   );
 
-  const libraryCard = (item: MediaRef) => (
-    <WideCard
-      key={keyOf(item)}
-      title={item.kind === 'episode' ? (item.seriesName ?? item.name) : item.name}
-      subtitle={item.kind === 'episode' ? `S${item.season} · E${item.episodeNum}` : undefined}
-      image={item.image}
-      width={wideCard}
-      progress={inProgressFraction(library.progress[keyOf(item)])}
-      onPress={() => openMedia(router, item)}
-    />
-  );
-
-  const seeAll = (route: Href, label: string) =>
-    isTV ? undefined : (
-      <Pressable accessibilityRole="link" accessibilityLabel={`See all ${label}`} onPress={() => router.push(route)} style={styles.seeAll}>
-        <Text style={styles.seeAllText}>See All</Text>
-        <Ionicons name="arrow-forward" size={16} color={colors.text} />
-      </Pressable>
-    );
-
-  const posterRail = (title: string, items: (Movie | Series)[], route: Href) => (
-    <Rail
-      title={title}
-      data={items}
-      keyExtractor={(m) => m.id}
-      action={seeAll(route, title.toLowerCase())}
-      renderItem={(m) => (
-        <PosterCard
-          title={m.name}
-          image={m.poster}
-          rating={m.rating}
-          width={posterWidth}
-          onFocus={rememberHero}
-          onPress={() => openMedia(router, m)}
-        />
-      )}
-    />
-  );
-
-  const hero =
+  const heroFor = (h: number) =>
     featured.length > 0 ? (
-      <FeaturedCarousel items={featured} height={heroHeight} pad={pad} isWide={isWide} isTV={isTV} />
+      <FeaturedCarousel items={featured} height={h} pad={pad} isWide={isWide} isTV={isTV} dense={oneScreen && h < 380} />
     ) : (
-      <View style={[styles.heroEmpty, { height: isTV ? heroHeight : Math.min(heroHeight, 260) }]}>
+      <View style={[styles.heroEmpty, { height: oneScreen ? h : Math.min(h, 260) }]}>
         {loadingCatalog ? <ActivityIndicator color={colors.text} /> : <Text style={styles.heroEmptyText}>Welcome to {profile?.name}</Text>}
       </View>
     );
 
-  const categoryCards = categories.map((c) => (
-    <CategoryCard
-      key={c.id}
-      id={c.id}
-      label={c.label}
-      icon={c.icon}
-      count={c.count}
-      gradient={c.gradient}
-      compact={!isWide}
-      dense={isTV}
-      onPress={() => router.push(c.route as Href)}
-    />
-  ));
+  const categoryRow = (
+    <View style={[styles.categories, { paddingHorizontal: pad }]}>
+      {categories.map((c) => (
+        <CategoryCard key={c.id} {...c} height={categoryHeight} stacked={stackedCategories} />
+      ))}
+    </View>
+  );
 
-  // TV (Fire TV / Android TV): everything fits on one screen, no scrolling. Two rails of 16:9 cards share
-  // the space left under the hero; posters sit on a blurred copy of themselves to fill the wide frame.
-  if (isTV) {
-    type TvCard = Omit<WideCardProps, 'width'> & { key: string };
-    const catalogCards = (items: (Movie | Series)[]): TvCard[] =>
-      items.map((m) => ({ key: m.id, title: m.name, image: m.poster, poster: true, onPress: () => openMedia(router, m) }));
-    const continueCards: TvCard[] = continueWatching.slice(0, 20).map((i) => ({
-      key: keyOf(i),
-      title: i.kind === 'episode' ? (i.seriesName ?? i.name) : i.name,
-      subtitle: i.kind === 'episode' ? `S${i.season} · E${i.episodeNum}` : undefined,
-      image: i.image,
-      progress: inProgressFraction(library.progress[keyOf(i)]),
-      onPress: () => openMedia(router, i),
-    }));
-    const tvRails = (
-      continueCards.length > 0
-        ? [
-            { key: 'continue', title: 'Continue Watching', items: continueCards },
-            { key: 'movies', title: 'Recently Added Movies', items: catalogCards(latestMovies) },
-          ]
-        : [
-            { key: 'movies', title: 'Recently Added Movies', items: catalogCards(latestMovies) },
-            { key: 'series', title: 'Recently Updated Series', items: catalogCards(latestSeries) },
-          ]
-    ).filter((r) => r.items.length > 0);
-    // Each compact rail spends ~38dp on its title and focus padding; the cards get the rest.
-    const cardHeight = tvRailsHeight ? Math.max(60, Math.floor((tvRailsHeight - spacing.md) / Math.max(1, tvRails.length)) - 38) : 0;
-    const cardWidth = Math.round((cardHeight * 16) / 9);
+  const recentRail = (
+    <View style={{ paddingHorizontal: isWide ? spacing.sm : 0 }}>
+      <Rail
+        compact={oneScreen}
+        title="Recently Added"
+        data={recentlyAdded}
+        keyExtractor={(i) => `${i.kind}:${i.id}`}
+        renderItem={(i) => (
+          <PosterCard
+            title={i.name}
+            subtitle={i.kind === 'movie' ? 'Movie' : 'Series'}
+            image={i.poster}
+            rating={isTV ? undefined : i.rating}
+            width={posterWidth}
+            onFocus={rememberHero}
+            onPress={() => openMedia(router, i)}
+          />
+        )}
+      />
+    </View>
+  );
+
+  // One screen, no scrolling: the hero fills whatever the category cards and the poster row leave.
+  if (oneScreen) {
+    const bottomInset = isWide ? insets.bottom : 0; // with bottom tabs, the tab bar already handles it
     return (
-      <View style={styles.safe}>
-        <View>
-          {hero}
-          <View style={[styles.actionsWrap, { paddingHorizontal: pad, top: spacing.md }]} pointerEvents="box-none">
-            <View style={styles.actions}>
-              {status && (
-                <View style={[styles.tvStatus, { borderColor: status.color }]}>
-                  <Ionicons name={status.icon} size={14} color={status.color} />
-                  <Text style={[styles.tvStatusText, { color: status.color }]} numberOfLines={1}>
-                    {status.text}
-                  </Text>
-                </View>
-              )}
-              {actions}
-            </View>
+      <View style={styles.safe} onLayout={(e) => setScreenHeight(e.nativeEvent.layout.height)}>
+        <View style={styles.heroSpace} onLayout={(e) => setHeroSpace(e.nativeEvent.layout.height)}>
+          {heroSpace > 0 && heroFor(heroSpace)}
+          <View style={[styles.actionsWrap, { paddingHorizontal: pad, top: insets.top + spacing.md }]} pointerEvents="box-none">
+            {actions}
           </View>
         </View>
-        <View style={[styles.categories, styles.categoriesTV, { paddingHorizontal: pad }]}>{categoryCards}</View>
-        <View style={styles.tvRails} onLayout={(e) => setTvRailsHeight(e.nativeEvent.layout.height)}>
-          {cardHeight > 0 &&
-            tvRails.map((r) => (
-              <Rail
-                key={r.key}
-                compact
-                title={r.title}
-                data={r.items}
-                keyExtractor={(c) => c.key}
-                renderItem={({ key, ...card }) => <WideCard key={key} {...card} width={cardWidth} />}
-              />
-            ))}
-        </View>
+        {screenHeight > 0 && (
+          <>
+            {categoryRow}
+            <View style={{ paddingBottom: spacing.sm + bottomInset }}>{recentRail}</View>
+          </>
+        )}
         <ExitDialog visible={confirmExit} onStay={() => setConfirmExit(false)} onExit={() => BackHandler.exitApp()} />
       </View>
     );
@@ -283,10 +215,10 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe} edges={isWide ? [] : ['top']}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: spacing.xxl }}
-        refreshControl={isTV ? undefined : <RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={colors.text} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={colors.text} />}
       >
         <View>
-          {hero}
+          {heroFor(heroHeight)}
           <View style={[styles.actionsWrap, { paddingHorizontal: pad, top: (isWide ? insets.top : 0) + spacing.lg }]} pointerEvents="box-none">
             {actions}
           </View>
@@ -299,35 +231,8 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <View style={[styles.categories, { paddingHorizontal: pad }]}>{categoryCards}</View>
-
-        <View style={isWide && { paddingHorizontal: spacing.sm }}>
-          <Rail
-            title="Continue Watching"
-            data={continueWatching}
-            keyExtractor={keyOf}
-            renderItem={libraryCard}
-            action={seeAll('/favorites', 'watch history')}
-          />
-          {posterRail('Recently Added Movies', latestMovies, '/movies')}
-          {posterRail('Recently Updated Series', latestSeries, '/series')}
-          <Rail
-            title="My List"
-            data={favorites}
-            keyExtractor={keyOf}
-            action={seeAll('/favorites', 'my list')}
-            renderItem={(item) => (
-              <PosterCard
-                key={keyOf(item)}
-                title={item.kind === 'episode' ? (item.seriesName ?? item.name) : item.name}
-                image={item.image}
-                width={posterWidth}
-                onFocus={rememberHero}
-                onPress={() => openMedia(router, item)}
-              />
-            )}
-          />
-        </View>
+        {categoryRow}
+        {recentRail}
       </ScrollView>
       <ExitDialog visible={confirmExit} onStay={() => setConfirmExit(false)} onExit={() => BackHandler.exitApp()} />
     </SafeAreaView>
@@ -340,12 +245,15 @@ function FeaturedCarousel({
   pad,
   isWide,
   isTV,
+  dense,
 }: {
   items: (Movie | Series)[];
   height: number;
   pad: number;
   isWide: boolean;
   isTV: boolean;
+  /** Short hero (one-screen layouts): one-line plot, smaller buttons. */
+  dense: boolean;
 }) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
@@ -400,17 +308,17 @@ function FeaturedCarousel({
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={[styles.heroContent, isTV && styles.heroContentTV, { paddingHorizontal: pad, maxWidth: isWide ? '55%' : '100%' }]}>
+      <View style={[styles.heroContent, dense && styles.heroContentTV, { paddingHorizontal: pad, maxWidth: isWide ? '55%' : '100%' }]}>
         <View style={styles.featuredChip}>
           <Ionicons name="star" size={13} color={colors.warning} />
           <Text style={styles.featuredText}>Featured</Text>
         </View>
-        <Text style={[styles.heroTitle, isWide && styles.heroTitleWide, isTV && styles.heroTitleTV]} numberOfLines={isWide ? 1 : 2}>
+        <Text style={[styles.heroTitle, isWide && styles.heroTitleWide, dense && styles.heroTitleTV]} numberOfLines={isWide ? 1 : 2}>
           {item.name}
         </Text>
-        {!!meta && !isTV && <Text style={styles.heroMeta}>{meta}</Text>}
+        {!!meta && !dense && <Text style={styles.heroMeta}>{meta}</Text>}
         {!!plot && (
-          <Text style={[styles.heroPlot, isWide && styles.heroPlotWide]} numberOfLines={isTV ? 1 : 2}>
+          <Text style={[styles.heroPlot, isWide && styles.heroPlotWide]} numberOfLines={dense ? 1 : 2}>
             {plot}
           </Text>
         )}
@@ -426,7 +334,7 @@ function FeaturedCarousel({
             }}
             onBlur={focusHandlers.onBlur}
             onPress={play}
-            style={({ pressed, focused }) => [styles.playButton, isTV && styles.heroButtonTV, pressed && { opacity: 0.85 }, tvFocus(focused)]}
+            style={({ pressed, focused }) => [styles.playButton, dense && styles.heroButtonTV, pressed && { opacity: 0.85 }, tvFocus(focused)]}
           >
             <Ionicons name="play" size={18} color="#fff" />
             <Text style={styles.playText}>{item.kind === 'movie' ? 'Play Now' : 'Watch Now'}</Text>
@@ -436,14 +344,14 @@ function FeaturedCarousel({
             accessibilityLabel={`More info about ${item.name}`}
             {...focusHandlers}
             onPress={() => openMedia(router, item)}
-            style={({ pressed, focused }) => [styles.infoButton, isTV && styles.heroButtonTV, pressed && { opacity: 0.85 }, tvFocus(focused)]}
+            style={({ pressed, focused }) => [styles.infoButton, dense && styles.heroButtonTV, pressed && { opacity: 0.85 }, tvFocus(focused)]}
           >
             <Ionicons name="information-circle-outline" size={20} color={colors.text} />
             <Text style={styles.infoText}>More Info</Text>
           </Pressable>
         </View>
         {items.length > 1 && (
-          <View style={[styles.dots, isTV && { marginTop: spacing.xs }]}>
+          <View style={[styles.dots, dense && { marginTop: spacing.xs }]}>
             {items.map((it, i) => (
               <Pressable
                 key={it.id}
@@ -462,103 +370,70 @@ function FeaturedCarousel({
   );
 }
 
-function CategoryCard({
-  id,
-  label,
-  icon,
-  count,
-  gradient,
-  compact,
-  dense,
-  onPress,
-}: {
+interface CategoryProps {
   id: string;
   label: string;
   icon: IconName;
   count: string;
-  gradient: readonly [string, string];
-  compact: boolean;
-  /** TV: a thin strip, so the one-screen home has room for the rails. */
-  dense?: boolean;
-  onPress: () => void;
-}) {
+  /** Three stops, light to dark, drawn diagonally. */
+  gradient: [string, string, string];
+  route: Href;
+}
+
+/** Big gradient tile for a section. Row layout when wide; stacked (icon above text) on phones. */
+function CategoryCard({ id, label, icon, count, gradient, route, height, stacked }: CategoryProps & { height: number; stacked: boolean }) {
+  const router = useRouter();
   const { ref, onFocus } = useRememberedFocus(id);
+  // Everything inside scales with the card, so it reads well from a phone to a TV across the room.
+  const badge = Math.round(Math.min(78, Math.max(40, height * (stacked ? 0.36 : 0.46))));
+  const labelSize = Math.round(Math.min(28, Math.max(16, height * (stacked ? 0.13 : 0.17))));
   return (
     <Pressable
       ref={ref}
       accessibilityRole="button"
       accessibilityLabel={`${label}, ${count}`}
       onFocus={onFocus}
-      onPress={onPress}
-      style={({ pressed, focused }) => [styles.category, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }, tvFocus(focused)]}
+      onPress={() => router.push(route)}
+      style={({ pressed, focused }) => [
+        styles.category,
+        { height },
+        pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+        focused && Platform.isTV && styles.categoryFocused,
+        tvFocus(focused),
+      ]}
     >
-      <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <Ionicons name={icon} size={compact || dense ? 64 : 110} color="rgba(255,255,255,0.1)" style={styles.categoryWatermark} />
-      <View style={[styles.categoryBody, compact && styles.categoryBodyCompact, dense && styles.categoryBodyDense]}>
-        <Ionicons name={icon} size={compact || dense ? 26 : 40} color="#fff" />
-        <View style={{ flex: compact ? undefined : 1 }}>
-          <Text style={[styles.categoryLabel, (compact || dense) && styles.categoryLabelCompact]} numberOfLines={1}>
+      <LinearGradient colors={gradient} locations={[0, 0.55, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      {/* Soft light from the top-left corner, like a glossy panel. */}
+      <LinearGradient
+        colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.6, y: 0.7 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <Ionicons
+        name={icon}
+        size={Math.round(height * 1.05)}
+        color="rgba(255,255,255,0.11)"
+        style={[styles.categoryWatermark, { right: -height * 0.12, bottom: -height * 0.22 }]}
+      />
+      <View style={[styles.categoryBody, stacked ? styles.categoryBodyStacked : { paddingHorizontal: Math.round(height * 0.2) }]}>
+        <View style={[styles.categoryBadge, { width: badge, height: badge, borderRadius: badge * 0.3 }]}>
+          <Ionicons name={icon} size={Math.round(badge * 0.52)} color="#fff" />
+        </View>
+        <View style={stacked ? undefined : { flex: 1 }}>
+          <Text style={[styles.categoryLabel, { fontSize: labelSize }]} numberOfLines={1}>
             {label}
           </Text>
-          <Text style={styles.categoryCount} numberOfLines={1}>
+          <Text style={[styles.categoryCount, { fontSize: Math.max(12, Math.round(labelSize * 0.55)) }]} numberOfLines={1}>
             {count}
           </Text>
         </View>
-        {!compact && (
-          <View style={[styles.chevron, dense && styles.chevronDense]}>
-            <Ionicons name="chevron-forward" size={18} color="#fff" />
+        {!stacked && (
+          <View style={[styles.chevron, { width: badge * 0.5, height: badge * 0.5, borderRadius: badge * 0.25 }]}>
+            <Ionicons name="arrow-forward" size={Math.round(badge * 0.26)} color="#fff" />
           </View>
         )}
       </View>
-    </Pressable>
-  );
-}
-
-interface WideCardProps {
-  title: string;
-  subtitle?: string;
-  image?: string;
-  width: number;
-  progress?: number;
-  /** The image is a 2:3 poster: show it whole over a blurred copy instead of cropping it. */
-  poster?: boolean;
-  onPress: () => void;
-}
-
-function WideCard({ title, subtitle, image, width, progress, poster, onPress }: WideCardProps) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={progress !== undefined ? `Continue ${title}` : title}
-      onFocus={rememberHero}
-      onPress={onPress}
-      style={({ pressed, focused }) => [{ width }, pressed && { opacity: 0.85 }, focused && Platform.isTV && styles.cardFocused]}
-    >
-      {({ focused }) => (
-        <View style={[styles.continueCard, { height: width * 0.5625 }, tvFocus(focused)]}>
-          {poster ? (
-            <>
-              <Artwork uri={image} name={title} style={StyleSheet.absoluteFill} blurRadius={18} />
-              <Artwork uri={image} name={title} style={styles.widePoster} />
-            </>
-          ) : (
-            <Artwork uri={image} name={title} style={StyleSheet.absoluteFill} />
-          )}
-          <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.85)']} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
-          {progress !== undefined && (
-            <View style={styles.continuePlay}>
-              <Ionicons name="play" size={14} color="#fff" style={{ marginLeft: 2 }} />
-            </View>
-          )}
-          <View style={[styles.continueText, poster && { right: '40%' }]}>
-            {!!subtitle && <Text style={styles.continueSubtitle}>{subtitle}</Text>}
-            <Text style={styles.continueTitle} numberOfLines={poster ? 2 : 1}>
-              {title}
-            </Text>
-            {progress !== undefined && <ProgressBar value={progress} style={styles.continueProgress} />}
-          </View>
-        </View>
-      )}
     </Pressable>
   );
 }
@@ -655,33 +530,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   bannerText: { fontSize: 14, flex: 1 },
-  categories: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg },
+  categories: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
   category: {
     flex: 1,
-    borderRadius: radius.lg,
+    borderRadius: radius.lg + 4,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.22)',
   },
-  categoryWatermark: { position: 'absolute', right: -8, bottom: -14 },
-  categoryBody: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, paddingHorizontal: spacing.xl, paddingVertical: spacing.xl },
-  categoryBodyDense: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, gap: spacing.md },
-  categoryBodyCompact: { flexDirection: 'column', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md },
-  categoryLabel: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  categoryLabelCompact: { fontSize: 15 },
-  categoryCount: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 2 },
-  chevron: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  categoryFocused: { transform: [{ scale: 1.04 }], zIndex: 1 },
+  categoryWatermark: { position: 'absolute', transform: [{ rotate: '-12deg' }] },
+  categoryBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  categoryBodyStacked: { flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: spacing.sm, padding: spacing.md },
+  categoryBadge: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.32)',
   },
-  chevronDense: { width: 28, height: 28, borderRadius: 14 },
-  categoriesTV: { marginTop: spacing.sm },
-  tvRails: { flex: 1, paddingHorizontal: spacing.sm, paddingBottom: spacing.md },
-  tvStatus: {
+  categoryLabel: { color: '#fff', fontWeight: '800', letterSpacing: 0.3 },
+  categoryCount: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginTop: 2 },
+  chevron: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.28)' },
+  heroSpace: { flex: 1, minHeight: 200 },
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -692,40 +564,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: 'rgba(11,13,18,0.8)',
   },
-  tvStatusText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
-  cardFocused: { transform: [{ scale: 1.05 }], zIndex: 1 },
-  widePoster: {
-    position: 'absolute',
-    right: '6%',
-    top: '8%',
-    bottom: '8%',
-    aspectRatio: 2 / 3,
-    borderRadius: radius.sm,
-  },
-  seeAll: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  seeAllText: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  continueCard: {
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  continuePlay: {
-    position: 'absolute',
-    right: spacing.sm,
-    top: spacing.sm,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  continueText: { position: 'absolute', left: spacing.sm, right: spacing.sm, bottom: spacing.sm },
-  continueSubtitle: { color: colors.textDim, fontSize: 11, fontWeight: '600' },
-  continueTitle: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  continueProgress: { marginTop: 6, backgroundColor: 'rgba(255,255,255,0.2)' },
+  statusPillText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
 });

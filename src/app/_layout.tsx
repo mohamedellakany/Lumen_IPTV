@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { NavigationBar } from 'expo-navigation-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
@@ -38,6 +39,8 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={theme}>
         <StatusBar style="light" />
+        {/* Android: hide the system Back/Home/Recents bar for a full-screen app; a swipe from the edge shows it briefly. */}
+        <NavigationBar hidden />
         <Stack
           screenOptions={{
             headerStyle: { backgroundColor: colors.bg },

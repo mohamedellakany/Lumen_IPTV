@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { normalizeHost, parseXtreamM3uUrl } from '@/api/parsers';
 import { createProvider } from '@/api/provider';
 import type { Profile } from '@/api/types';
+import { BrandLogo } from '@/components/BrandLogo';
 import { Button, IconButton } from '@/components/Button';
 import { Segmented } from '@/components/Segmented';
 import { useLibraryStore } from '@/store/library';
@@ -114,9 +115,7 @@ export default function LoginScreen() {
               <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} style={styles.back} />
             )}
             <View style={styles.brand}>
-              <View style={styles.logo}>
-                <Ionicons name="play" size={30} color="#fff" />
-              </View>
+              <BrandLogo size={96} style={styles.logo} />
               <Text style={styles.title}>Lumen Player</Text>
               <Text style={styles.subtitle}>Add your IPTV playlist to start watching</Text>
             </View>
@@ -247,15 +246,7 @@ const styles = StyleSheet.create({
   card: { width: '100%', maxWidth: 480, alignSelf: 'center' },
   back: { alignSelf: 'flex-start', marginBottom: spacing.sm },
   brand: { alignItems: 'center', marginBottom: spacing.xl },
-  logo: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
+  logo: { marginBottom: spacing.md },
   title: { color: colors.text, fontSize: 28, fontWeight: '800' },
   subtitle: { color: colors.textDim, fontSize: 15, marginTop: spacing.xs, textAlign: 'center' },
   section: { marginBottom: spacing.xl, gap: spacing.md },

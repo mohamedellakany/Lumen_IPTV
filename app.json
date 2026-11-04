@@ -61,6 +61,12 @@
           "backgroundColor": "#0B0D12"
         }
       ],
+      [
+        "expo-navigation-bar",
+        {
+          "hidden": true
+        }
+      ],
       "expo-font",
       [
         "@react-native-tvos/config-tv",
