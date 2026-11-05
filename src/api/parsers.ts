@@ -234,51 +234,68 @@ function decodeEntities(text: string): string {
   });
 }
 
-/**
- * True when a reply is a block page from a web-safety filter (router security, ISP "advanced security",
- * filtering DNS, parental controls) rather than from the IPTV server. Panels often keep VOD files on
- * separate storage hosts, so a filter that flags one of them breaks only some titles.
- */
-export function isNetworkFilterPage(text: string): boolean {
-  return /suspicious (site|website|page)|site (was |has been )?blocked|blocked because it may|unsafe (content|site|website)|malicious (site|website|content)|phishing|web ?filter|content filter|parental control|safe ?browsing|security (filter|threat)|blocked by (your )?(network|administrator|router|isp|internet provider)|access to this (site|page|website) (is|has been|was) (blocked|denied|restricted)/i.test(
-    text,
-  );
+/** HLS: the `CODECS` attribute values of a master playlist, lower-cased (e.g. "hvc1.2.4.l150.b0"). */
+export function hlsCodecs(playlist: string): string[] {
+  return [...playlist.matchAll(/CODECS="([^"]+)"/gi)].flatMap((m) => m[1].split(',').map((c) => c.trim().toLowerCase()));
 }
 
-const FILTER_HOSTS = /(^|\.)(cujo\.io|charter\.com|spectrum\.(com|net)|w3\.org)$/i;
-
-const hostOfUrl = (value: string): string | null => value.match(/^(?:https?:\/\/)?([a-z0-9-]+(?:\.[a-z0-9-]+)+)(?::\d+)?(?:[/?#]|$)/i)?.[1] ?? null;
+/** HLS: the first URI line of a playlist (a variant in a master playlist, a segment in a media one), resolved. */
+export function firstPlaylistUri(playlist: string, base: string): string | null {
+  const line = playlist.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#'));
+  if (!line) return null;
+  try {
+    return new URL(line, base).toString();
+  } catch {
+    return null;
+  }
+}
 
 /**
- * Which site a web filter blocked, from its block page's URL (filters usually pass it as a query
- * parameter) or its HTML. The block page's own host is not the answer: allowing it changes nothing.
+ * MPEG-TS: the elementary stream types announced in the first program map table, read from the start
+ * of a segment. 0x1b = H.264, 0x24 = HEVC, 0x0f = AAC, 0x81 = AC-3. Empty if no PAT/PMT was found.
  */
-export function blockedSiteFromFilter(blockPageUrl: string, html: string): string | null {
-  const candidates: string[] = [];
-  const query = blockPageUrl.split('?')[1]?.split('#')[0] ?? '';
-  for (const pair of query.split('&')) {
-    const value = pair.slice(pair.indexOf('=') + 1);
-    try {
-      candidates.push(decodeURIComponent(value.replace(/\+/g, ' ')));
-    } catch {
-      candidates.push(value);
+export function tsStreamTypes(data: Uint8Array): number[] {
+  const PACKET = 188;
+  let start = data.indexOf(0x47);
+  while (start >= 0 && start + PACKET < data.length && data[start + PACKET] !== 0x47) start = data.indexOf(0x47, start + 1);
+  if (start < 0) return [];
+
+  // Payload of a packet that starts a PSI section, positioned at its table_id.
+  const section = (p: number): number | null => {
+    if (!(data[p + 1] & 0x40)) return null;
+    const adaptation = (data[p + 3] >> 4) & 3;
+    let o = p + 4;
+    if (adaptation === 2) return null;
+    if (adaptation === 3) o += 1 + data[o];
+    o += 1 + data[o]; // pointer_field
+    return o < p + PACKET ? o : null;
+  };
+
+  let pmtPid = -1;
+  for (let p = start; p + PACKET <= data.length; p += PACKET) {
+    if (data[p] !== 0x47) break;
+    const pid = ((data[p + 1] & 0x1f) << 8) | data[p + 2];
+    const o = section(p);
+    if (o === null) continue;
+    const length = ((data[o + 1] & 0x0f) << 8) | data[o + 2];
+    const end = Math.min(o + 3 + length - 4, p + PACKET);
+    if (pid === 0 && data[o] === 0x00) {
+      for (let i = o + 8; i + 4 <= end; i += 4) {
+        const program = (data[i] << 8) | data[i + 1];
+        if (program !== 0) {
+          pmtPid = ((data[i + 2] & 0x1f) << 8) | data[i + 3];
+          break;
+        }
+      }
+    } else if (pid === pmtPid && data[o] === 0x02) {
+      const types: number[] = [];
+      let i = o + 12 + (((data[o + 10] & 0x0f) << 8) | data[o + 11]);
+      while (i + 5 <= end) {
+        types.push(data[i]);
+        i += 5 + (((data[i + 3] & 0x0f) << 8) | data[i + 4]);
+      }
+      return types;
     }
   }
-  for (const m of html.matchAll(/\b(?:url|site|domain|host|blocked)["']?\s*[:=]\s*["']?((?:https?:\/\/)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?::\d+)?)/gi)) {
-    candidates.push(m[1]);
-  }
-  for (const c of candidates) {
-    const host = hostOfUrl(c.trim());
-    if (host && /[a-z]/i.test(host.split('.').pop() ?? '') && !FILTER_HOSTS.test(host)) return host;
-    if (host && /^\d+(\.\d+){3}$/.test(host)) return host;
-  }
-  return null;
-}
-
-/** A friendly name for known ISP web filters, from the block page's address. */
-export function networkFilterName(blockPageUrl: string): string | null {
-  const host = hostOfUrl(blockPageUrl) ?? '';
-  if (/charter|spectrum/i.test(host)) return 'Spectrum Security Shield';
-  if (/cujo/i.test(host)) return 'your router\'s security filter';
-  return null;
+  return [];
 }

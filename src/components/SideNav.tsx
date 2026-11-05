@@ -24,15 +24,27 @@ export const NAV_ICONS: Record<string, [IconName, IconName]> = {
 };
 
 /** Left navigation rail used instead of the bottom tab bar on tablets, desktop and TV. */
-export function SideNav({ state, descriptors, emitter, navigateToTab, width }: BottomTabBarProps & { width: number }) {
+/** `compact`: icons only, for phones held sideways. */
+export function SideNav({ state, descriptors, emitter, navigateToTab, width, compact }: BottomTabBarProps & { width: number; compact?: boolean }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.rail, { width, paddingTop: insets.top + (isTV ? spacing.lg : spacing.xl), paddingBottom: insets.bottom + spacing.lg }]}>
-      <View style={[styles.brand, isTV && styles.brandTV]}>
-        <BrandLogo size={isTV ? 38 : 52} />
-        <Text style={styles.brandText}>Lumen</Text>
+    <View
+      style={[
+        styles.rail,
+        compact && styles.railCompact,
+        {
+          width,
+          paddingLeft: insets.left + (compact ? spacing.sm : spacing.md),
+          paddingTop: insets.top + (compact ? spacing.md : isTV ? spacing.lg : spacing.xl),
+          paddingBottom: insets.bottom + (compact ? spacing.sm : spacing.lg),
+        },
+      ]}
+    >
+      <View style={[styles.brand, isTV && styles.brandTV, compact && styles.brandCompact]}>
+        <BrandLogo size={compact ? 40 : isTV ? 38 : 52} />
+        {!compact && <Text style={styles.brandText}>Lumen</Text>}
       </View>
 
       <View style={styles.items}>
@@ -46,6 +58,7 @@ export function SideNav({ state, descriptors, emitter, navigateToTab, width }: B
               label={label}
               icon={focused ? activeIcon : icon}
               active={focused}
+              compact={compact}
               onPress={() => {
                 const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
                 if (!focused && !event.defaultPrevented) navigateToTab(route.key);
@@ -53,15 +66,15 @@ export function SideNav({ state, descriptors, emitter, navigateToTab, width }: B
             />
           );
         })}
-        <NavItem label="Settings" icon="settings-outline" onPress={() => router.push('/settings')} />
+        <NavItem label="Settings" icon="settings-outline" compact={compact} onPress={() => router.push('/settings')} />
       </View>
 
-      <AccountBadge />
+      <AccountBadge compact={compact} />
     </View>
   );
 }
 
-function NavItem({ label, icon, active, onPress }: { label: string; icon: IconName; active?: boolean; onPress: () => void }) {
+function NavItem({ label, icon, active, compact, onPress }: { label: string; icon: IconName; active?: boolean; compact?: boolean; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="tab"
@@ -71,6 +84,7 @@ function NavItem({ label, icon, active, onPress }: { label: string; icon: IconNa
       style={({ pressed, focused, hovered }) => [
         styles.item,
         isTV && styles.itemTV,
+        compact && styles.itemCompact,
         (hovered || focused) && !active && styles.itemHover,
         active && styles.itemActive,
         pressed && { opacity: 0.8 },
@@ -78,14 +92,16 @@ function NavItem({ label, icon, active, onPress }: { label: string; icon: IconNa
       ]}
     >
       <Ionicons name={icon} size={22} color={active ? '#fff' : colors.textDim} />
-      <Text style={[styles.itemLabel, active && styles.itemLabelActive]} numberOfLines={1}>
-        {label}
-      </Text>
+      {!compact && (
+        <Text style={[styles.itemLabel, active && styles.itemLabelActive]} numberOfLines={1}>
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }
 
-function AccountBadge() {
+function AccountBadge({ compact }: { compact?: boolean }) {
   const profile = useActiveProfile();
   const account = useAccountInfo();
   const expiresIn = daysUntil(account.data?.expiresAt);
@@ -99,6 +115,14 @@ function AccountBadge() {
         : `${expiresIn} day${expiresIn === 1 ? '' : 's'} left`
       : (profile?.name ?? '');
 
+  // Compact rail: just the connection dot.
+  if (compact) {
+    return (
+      <View style={styles.badgeCompact} accessibilityLabel={`${status}${detail ? `, ${detail}` : ''}`}>
+        <View style={[styles.dot, { backgroundColor: dot }]} />
+      </View>
+    );
+  }
   return (
     <View style={styles.badge}>
       <View style={styles.badgeRow}>
@@ -122,6 +146,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   brand: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xxl },
+  railCompact: { paddingRight: spacing.sm },
+  brandCompact: { marginBottom: spacing.md },
+  itemCompact: { justifyContent: 'center', paddingHorizontal: 0, paddingVertical: spacing.sm },
+  badgeCompact: { alignItems: 'center', paddingVertical: spacing.sm },
   brandTV: { flexDirection: 'row', justifyContent: 'center', marginBottom: spacing.lg },
   itemTV: { paddingVertical: spacing.sm },
   brandText: { color: colors.text, fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useRef, type ComponentRef, type Ref } from 'react';
 import { FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useLayout } from '@/hooks/useLayout';
 import { colors, radius, spacing, tvFocus } from '@/theme';
 
 export interface PickerCategory {
@@ -57,6 +58,7 @@ const SidebarRow = memo(function SidebarRow({ item, active, onSelect, ref }: Row
 
 export const CategoryPicker = memo(function CategoryPicker({ categories, selected, onSelect, variant, focusFirstSignal }: Props) {
   const listRef = useRef<FlatList<PickerCategory>>(null);
+  const { sidebarWidth } = useLayout();
   const firstRowRef = useRef<ComponentRef<typeof Pressable>>(null);
 
   useEffect(() => {
@@ -95,7 +97,7 @@ export const CategoryPicker = memo(function CategoryPicker({ categories, selecte
   }
 
   return (
-    <View style={styles.sidebar}>
+    <View style={[styles.sidebar, { width: sidebarWidth }]}>
       <FlatList
         ref={listRef}
         data={categories}
@@ -129,7 +131,7 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipLabel: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
   chipLabelActive: { color: '#fff' },
-  sidebar: { width: tv ? 220 : 260, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.border },
+  sidebar: { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.border },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

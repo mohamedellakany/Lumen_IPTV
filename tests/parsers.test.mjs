@@ -3,15 +3,15 @@ import { test } from 'node:test';
 
 import {
   decodeBase64,
+  firstPlaylistUri,
+  hlsCodecs,
   isAdultCategory,
-  blockedSiteFromFilter,
-  isNetworkFilterPage,
-  networkFilterName,
   normalizeHost,
   parseEpisodeName,
   parseM3U,
   parseXtreamM3uUrl,
   readableText,
+  tsStreamTypes,
 } from '../src/api/parsers.ts';
 
 test('normalizeHost adds a scheme and strips paths', () => {
@@ -93,25 +93,42 @@ http://other.example.com/stream
   assert.equal(parseM3U(playlist).live[0].id, r.live[0].id);
 });
 
-test('isNetworkFilterPage spots router/ISP block pages but not panel account errors', () => {
-  const filterPage =
-    '<html><body><h1>Suspicious Site Blocked</h1><p>This site was blocked because it may contain unsafe content that can harm your device or compromise your personal info.&nbsp; Managing</p></body></html>';
-  assert.equal(isNetworkFilterPage(filterPage), true);
-  assert.equal(isNetworkFilterPage('Access to this website has been blocked by your administrator'), true);
-  assert.equal(isNetworkFilterPage('Your account is blocked'), false);
-  assert.equal(isNetworkFilterPage('Account expired'), false);
-});
-
 test('readableText decodes HTML entities', () => {
   assert.equal(readableText('<p>unsafe&nbsp;content &amp; more &#39;x&#x27;</p>'), "unsafe content & more 'x'");
   assert.equal(readableText('<title>Site&nbsp;Blocked</title><body>ignored</body>'), 'Site Blocked');
 });
 
-test('blockedSiteFromFilter finds the blocked server, never the filter itself', () => {
-  const page = 'https://block.charter-prod.hosted.cujo.io/';
-  assert.equal(blockedSiteFromFilter(`${page}?url=http%3A%2F%2Fstorage7.example.net%3A8080%2Fseries%2Fx.mkv&cat=malware`, ''), 'storage7.example.net');
-  assert.equal(blockedSiteFromFilter(page, '<script>var blocked = "cdn.example.org";</script>'), 'cdn.example.org');
-  assert.equal(blockedSiteFromFilter(page, '<a href="https://www.spectrum.net/support">Managing</a>'), null);
-  assert.equal(networkFilterName(page), 'Spectrum Security Shield');
-  assert.equal(networkFilterName('https://filter.example.com/'), null);
+test('hlsCodecs and firstPlaylistUri read HLS playlists', () => {
+  const master = '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=9000000,CODECS="hvc1.2.4.L150.B0,mp4a.40.2"\nhigh/index.m3u8\n';
+  assert.deepEqual(hlsCodecs(master), ['hvc1.2.4.l150.b0', 'mp4a.40.2']);
+  assert.equal(firstPlaylistUri(master, 'http://cdn.example.com/live/1/master.m3u8'), 'http://cdn.example.com/live/1/high/index.m3u8');
+  const media = '#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXTINF:4.0,\n/hls/seg001.ts?token=x\n';
+  assert.equal(firstPlaylistUri(media, 'http://cdn.example.com/live/1/index.m3u8'), 'http://cdn.example.com/hls/seg001.ts?token=x');
+  assert.equal(firstPlaylistUri('#EXTM3U\n', 'http://x/'), null);
+});
+
+// Builds a 188-byte TS packet carrying one PSI section (pointer_field 0), padded with 0xff.
+function psiPacket(pid, sectionBytes) {
+  const p = new Uint8Array(188).fill(0xff);
+  p.set([0x47, 0x40 | (pid >> 8), pid & 0xff, 0x10, 0x00], 0);
+  p.set(sectionBytes, 5);
+  return p;
+}
+function tsWith(streamTypes) {
+  // PAT: program 1 -> PMT on PID 0x1000.
+  const pat = psiPacket(0, [0x00, 0xb0, 0x0d, 0x00, 0x01, 0xc1, 0x00, 0x00, 0x00, 0x01, 0xf0, 0x00, 0, 0, 0, 0]);
+  const streams = streamTypes.flatMap((t, i) => [t, 0xe1, 0x00 + i, 0xf0, 0x00]);
+  const length = 9 + streams.length + 4;
+  const pmt = psiPacket(0x1000, [0x02, 0xb0 | (length >> 8), length & 0xff, 0x00, 0x01, 0xc1, 0x00, 0x00, 0xe1, 0x00, 0xf0, 0x00, ...streams, 0, 0, 0, 0]);
+  const out = new Uint8Array(188 * 3);
+  out.set(pat, 0);
+  out.set(pmt, 188);
+  out.set(psiPacket(0x1fff, []), 376);
+  return out;
+}
+
+test('tsStreamTypes reads the codec table of an MPEG-TS segment', () => {
+  assert.deepEqual(tsStreamTypes(tsWith([0x24, 0x0f])), [0x24, 0x0f]); // HEVC + AAC
+  assert.deepEqual(tsStreamTypes(tsWith([0x1b, 0x0f])), [0x1b, 0x0f]); // H.264 + AAC
+  assert.deepEqual(tsStreamTypes(new Uint8Array(500)), []);
 });

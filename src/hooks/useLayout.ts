@@ -1,4 +1,5 @@
 import { Platform, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { spacing } from '@/theme';
 
@@ -10,11 +11,15 @@ export const isTV = Platform.isTV;
  */
 export function useLayout() {
   const { width, height } = useWindowDimensions();
-  const isWide = width >= 900;
-  // Left navigation rail that replaces the bottom tab bar on wide screens and TV.
-  const navWidth = isTV ? 190 : width >= 1200 ? 220 : isWide ? 196 : 0;
-  const sidebarWidth = isTV ? 220 : isWide ? 260 : 0;
-  const contentWidth = width - navWidth - sidebarWidth;
+  const insets = useSafeAreaInsets();
+  // Phones held sideways: too short for a bottom tab bar, so they get a slim icon-only rail instead.
+  const compactNav = !isTV && width > height && height < 600;
+  const isWide = width >= 900 || compactNav;
+  // Left navigation rail that replaces the bottom tab bar on wide screens and TV. It also covers the
+  // left safe area (the iPhone notch in landscape), so its width includes that inset.
+  const navWidth = (isTV ? 190 : compactNav ? 72 : width >= 1200 ? 220 : isWide ? 196 : 0) + (isWide ? insets.left : 0);
+  const sidebarWidth = isTV ? 220 : compactNav ? 200 : isWide ? 260 : 0;
+  const contentWidth = width - navWidth - insets.right - sidebarWidth;
   const targetPoster = isTV ? 76 : width >= 1400 ? 170 : width >= 900 ? 150 : width >= 600 ? 130 : 108;
   const gap = spacing.md;
   const columns = Math.max(2, Math.floor((contentWidth - spacing.lg * 2 + gap) / (targetPoster + gap)));
@@ -25,6 +30,7 @@ export function useLayout() {
     isWide: isWide || isTV,
     isTV,
     navWidth,
+    compactNav,
     sidebarWidth,
     columns,
     posterWidth,

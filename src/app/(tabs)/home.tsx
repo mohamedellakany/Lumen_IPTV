@@ -106,20 +106,25 @@ export default function HomeScreen() {
   const pad = isWide ? spacing.xl : spacing.lg;
   const heroHeight = isWide ? Math.round(Math.min(480, Math.max(340, height * 0.5))) : Math.round(Math.min(520, width * 1.15));
   // TV, tablets and large screens: the whole Home fits on one screen with no scrolling. Phones scroll.
-  const oneScreen = isTV || Math.min(width, height) >= 600;
+  const oneScreen = isTV || Math.min(width, height) >= 600 || width > height;
   // Measured sizes for the one-screen layout: the whole screen, and the space left for the hero.
   const [screenHeight, setScreenHeight] = useState(0);
   const [heroSpace, setHeroSpace] = useState(0);
   // One-screen sizes scale with the screen: big category cards, then one row of posters.
-  const categoryHeight = oneScreen ? Math.min(170, Math.max(84, Math.round(screenHeight * 0.17))) : 140;
+  // Short screens (phones held sideways, ~400pt tall) get smaller minimums so everything still fits.
+  const shortScreen = screenHeight > 0 && screenHeight < 500;
+  const categoryHeight = oneScreen ? Math.min(170, Math.max(shortScreen ? 60 : 84, Math.round(screenHeight * 0.17))) : 140;
   // Icon beside the text needs a wide card; narrower ones (phones, tablets held upright) stack it on top.
-  const categoryWidth = (width - navWidth - pad * 2 - spacing.md * 2) / 3;
+  const categoryWidth = (width - navWidth - insets.right - pad * 2 - spacing.md * 2) / 3;
   const stackedCategories = categoryWidth < categoryHeight * 2.3;
-  const posterWidth = oneScreen ? Math.round(Math.min(300, Math.max(110, Math.round(screenHeight * 0.27))) / 1.5) : railPoster;
+  const posterWidth = oneScreen
+    ? Math.round(Math.min(300, Math.max(shortScreen ? 80 : 110, Math.round(screenHeight * (shortScreen ? 0.24 : 0.27)))) / 1.5)
+    : railPoster;
 
   const actions = (
     <View style={styles.actions}>
-      {status && oneScreen && (
+      {/* Phone-sized screens have no room for it beside the hero title; the sidebar dot still shows status. */}
+      {status && oneScreen && width - navWidth >= 900 && (
         <View style={[styles.statusPill, { borderColor: status.color }]}>
           <Ionicons name={status.icon} size={14} color={status.color} />
           <Text style={[styles.statusPillText, { color: status.color }]} numberOfLines={1}>
@@ -152,7 +157,7 @@ export default function HomeScreen() {
 
   const heroFor = (h: number) =>
     featured.length > 0 ? (
-      <FeaturedCarousel items={featured} height={h} pad={pad} isWide={isWide} isTV={isTV} dense={oneScreen && h < 380} />
+      <FeaturedCarousel items={featured} height={h} pad={pad} isWide={isWide} isTV={isTV} dense={oneScreen && h < 380} tiny={oneScreen && h < 200} />
     ) : (
       <View style={[styles.heroEmpty, { height: oneScreen ? h : Math.min(h, 260) }]}>
         {loadingCatalog ? <ActivityIndicator color={colors.text} /> : <Text style={styles.heroEmptyText}>Welcome to {profile?.name}</Text>}
@@ -162,7 +167,7 @@ export default function HomeScreen() {
   const categoryRow = (
     <View style={[styles.categories, { paddingHorizontal: pad }]}>
       {categories.map((c) => (
-        <CategoryCard key={c.id} {...c} height={categoryHeight} stacked={stackedCategories} />
+        <CategoryCard key={c.id} {...c} height={categoryHeight} stacked={stackedCategories} arrow={categoryWidth >= 200} />
       ))}
     </View>
   );
@@ -246,6 +251,7 @@ function FeaturedCarousel({
   isWide,
   isTV,
   dense,
+  tiny,
 }: {
   items: (Movie | Series)[];
   height: number;
@@ -254,6 +260,8 @@ function FeaturedCarousel({
   isTV: boolean;
   /** Short hero (one-screen layouts): one-line plot, smaller buttons. */
   dense: boolean;
+  /** Very short hero (phones held sideways): just the title, buttons and dots. */
+  tiny: boolean;
 }) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
@@ -309,15 +317,17 @@ function FeaturedCarousel({
       />
 
       <View style={[styles.heroContent, dense && styles.heroContentTV, { paddingHorizontal: pad, maxWidth: isWide ? '55%' : '100%' }]}>
-        <View style={styles.featuredChip}>
-          <Ionicons name="star" size={13} color={colors.warning} />
-          <Text style={styles.featuredText}>Featured</Text>
-        </View>
+        {!tiny && (
+          <View style={styles.featuredChip}>
+            <Ionicons name="star" size={13} color={colors.warning} />
+            <Text style={styles.featuredText}>Featured</Text>
+          </View>
+        )}
         <Text style={[styles.heroTitle, isWide && styles.heroTitleWide, dense && styles.heroTitleTV]} numberOfLines={isWide ? 1 : 2}>
           {item.name}
         </Text>
         {!!meta && !dense && <Text style={styles.heroMeta}>{meta}</Text>}
-        {!!plot && (
+        {!!plot && !tiny && (
           <Text style={[styles.heroPlot, isWide && styles.heroPlotWide]} numberOfLines={dense ? 1 : 2}>
             {plot}
           </Text>
@@ -381,7 +391,7 @@ interface CategoryProps {
 }
 
 /** Big gradient tile for a section. Row layout when wide; stacked (icon above text) on phones. */
-function CategoryCard({ id, label, icon, count, gradient, route, height, stacked }: CategoryProps & { height: number; stacked: boolean }) {
+function CategoryCard({ id, label, icon, count, gradient, route, height, stacked, arrow }: CategoryProps & { height: number; stacked: boolean; arrow: boolean }) {
   const router = useRouter();
   const { ref, onFocus } = useRememberedFocus(id);
   // Everything inside scales with the card, so it reads well from a phone to a TV across the room.
@@ -428,7 +438,7 @@ function CategoryCard({ id, label, icon, count, gradient, route, height, stacked
             {count}
           </Text>
         </View>
-        {!stacked && (
+        {!stacked && arrow && (
           <View style={[styles.chevron, { width: badge * 0.5, height: badge * 0.5, borderRadius: badge * 0.25 }]}>
             <Ionicons name="arrow-forward" size={Math.round(badge * 0.26)} color="#fff" />
           </View>
@@ -552,7 +562,7 @@ const styles = StyleSheet.create({
   categoryLabel: { color: '#fff', fontWeight: '800', letterSpacing: 0.3 },
   categoryCount: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginTop: 2 },
   chevron: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.28)' },
-  heroSpace: { flex: 1, minHeight: 200 },
+  heroSpace: { flex: 1, minHeight: 120 },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',

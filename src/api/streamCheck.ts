@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 import { proxify } from './http';
-import { blockedSiteFromFilter, isNetworkFilterPage, networkFilterName, readableText } from './parsers';
+import { firstPlaylistUri, hlsCodecs, readableText, tsStreamTypes } from './parsers';
 
 /**
  * Many IPTV panels only serve video to players they recognise and answer anything else with an error
@@ -65,20 +65,6 @@ export async function checkStream(url: string): Promise<StreamProblem | null> {
     if (VIDEO_TYPES.test(type)) return null;
     const text = (await res.text()).slice(0, 4000);
     const snippet = readableText(text);
-    // Checked first: these pages say "blocked", which would otherwise read as a blocked account.
-    // The response URL is the filter's block page (after its redirect), not the blocked server.
-    const blockPage = Platform.OS !== 'web' ? res.url : '';
-    if (isNetworkFilterPage(text) || /cujo\.io|charter|spectrum/i.test(streamHost(blockPage, ''))) {
-      const filter = networkFilterName(blockPage);
-      const site = blockedSiteFromFilter(blockPage, text);
-      return {
-        message:
-          filter === 'Spectrum Security Shield'
-            ? "Spectrum's Security Shield blocked this video, not your IPTV provider. In the My Spectrum app, open Security Shield and allow this site, or turn Security Shield off, then retry."
-            : "Your home network's security filter blocked this video, not your IPTV provider. Allow this site in your router or internet provider's security settings (or turn the filter off for this device), then retry.",
-        detail: site ? `Blocked site: ${site}` : `Blocked by ${filter ?? streamHost(blockPage, url)}`,
-      };
-    }
     if (/max.*conn|connection limit|too many/i.test(text)) {
       return { message: 'Your subscription has reached its connection limit. Stop watching on another device and try again.', detail: snippet };
     }
@@ -98,13 +84,6 @@ export async function checkStream(url: string): Promise<StreamProblem | null> {
   } finally {
     clearTimeout(timer);
   }
-}
-
-/** Host the stream was served from after redirects (panels often redirect VOD to a storage server). */
-function streamHost(finalUrl: string, requestedUrl: string): string {
-  // On web every request goes through the dev proxy, so only the requested URL is meaningful there.
-  const url = Platform.OS !== 'web' && finalUrl ? finalUrl : requestedUrl;
-  return url.match(/^\w+:\/\/([^/?#]+)/)?.[1] ?? url;
 }
 
 async function isPlayable(url: string): Promise<boolean> {
@@ -145,4 +124,43 @@ export async function findAlternativeStream(url: string): Promise<string | null>
     if (await isPlayable(candidate)) return candidate;
   }
   return null;
+}
+
+/**
+ * True when an HLS stream carries HEVC video inside MPEG-TS segments. AVPlayer only plays HEVC in
+ * fMP4, so on iOS it plays just the sound of these (common for "4K" live channels). Reads the playlist
+ * and the first few KB of one segment; false on any doubt, so normal streams are never affected.
+ */
+export async function isHevcInTs(url: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8_000);
+  const get = (target: string, range?: string) => {
+    const headers: Record<string, string> = range ? { Range: range } : {};
+    if (Platform.OS !== 'web') headers['User-Agent'] = PLAYER_USER_AGENT;
+    return fetch(proxify(target), { headers, signal: controller.signal });
+  };
+  try {
+    let res = await get(url);
+    let text = await res.text();
+    let base = res.url || url;
+    if (!text.trimStart().startsWith('#EXTM3U')) return false;
+    const codecs = hlsCodecs(text);
+    if (codecs.length && !codecs.some((c) => /^(hvc1|hev1)/.test(c))) return false;
+    if (/#EXT-X-STREAM-INF/i.test(text)) {
+      const variant = firstPlaylistUri(text, base);
+      if (!variant) return false;
+      res = await get(variant);
+      text = await res.text();
+      base = res.url || variant;
+    }
+    if (/#EXT-X-MAP/i.test(text)) return false; // fMP4 segments: AVPlayer handles HEVC there
+    const segment = firstPlaylistUri(text, base);
+    if (!segment) return false;
+    const bytes = new Uint8Array(await (await get(segment, 'bytes=0-65535')).arrayBuffer());
+    return tsStreamTypes(bytes).includes(0x24);
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
 }

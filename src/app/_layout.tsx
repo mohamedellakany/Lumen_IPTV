@@ -1,16 +1,23 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import { NavigationBar } from 'expo-navigation-bar';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 
 import { useStoresHydrated } from '@/store/hydration';
 import { colors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 SystemUI.setBackgroundColorAsync(colors.bg).catch(() => {});
+// Phones and tablets always run in landscape. app.json's "orientation" covers iOS, but the Android TV
+// plugin strips it from the (shared TV + mobile) Android build, so lock at runtime. TVs are landscape anyway.
+if (!Platform.isTV && Platform.OS !== 'web') {
+  ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,7 +66,7 @@ export default function RootLayout() {
           <Stack.Screen name="settings" options={{ title: 'Settings' }} />
           <Stack.Screen
             name="player"
-            options={{ headerShown: false, animation: 'fade', orientation: 'all', contentStyle: { backgroundColor: '#000' } }}
+            options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }}
           />
         </Stack>
       </ThemeProvider>

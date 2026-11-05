@@ -4,7 +4,7 @@
     "slug": "lumen-player",
     "version": "1.0.0",
     "scheme": "lumenplayer",
-    "orientation": "default",
+    "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0B0D12",
@@ -13,11 +13,12 @@
       "bundleIdentifier": "com.lumenplayer.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true,
-          "NSAllowsArbitraryLoadsForMedia": true
+          "NSAllowsArbitraryLoads": true
         },
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "K5S4N28GQC",
+      "requireFullScreen": true
     },
     "android": {
       "package": "com.lumenplayer.app",

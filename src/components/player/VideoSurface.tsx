@@ -1,12 +1,14 @@
 import { useEvent, useEventListener } from 'expo';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useVideoPlayer, VideoView, type AudioTrack, type SubtitleTrack, type VideoPlayer } from 'expo-video';
-import { useEffect, useImperativeHandle, useRef } from 'react';
-import { StyleSheet } from 'react-native';
+import { useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Platform, StyleSheet } from 'react-native';
 
-import { PLAYER_USER_AGENT } from '@/api/streamCheck';
+import { isHevcInTs, PLAYER_USER_AGENT } from '@/api/streamCheck';
 
+import { isVlcAvailable } from '../../../modules/vlc-player/src';
 import { trackLabel, type PlaybackState, type TrackInfo, type VideoSurfaceProps } from './types';
+import { VlcSurface } from './VlcSurface';
 
 const trackId = (t: AudioTrack | SubtitleTrack, i: number) => t.id ?? `${t.language}|${t.label}|${i}`;
 
@@ -31,8 +33,41 @@ function readTracks(player: VideoPlayer): TrackInfo {
   };
 }
 
-/** Native playback (AVPlayer on iOS, ExoPlayer on Android / Fire TV). */
-export function VideoSurface({
+// iOS: containers AVPlayer can't open at all go straight to VLC.
+const VLC_FIRST = /\.(mkv|avi|wmv|flv|webm)(\?|$)/i;
+// How long AVPlayer may play with no picture before we decide it can't decode the video.
+const NO_PICTURE_MS = 4000;
+
+/**
+ * Native playback. Android / Fire TV: ExoPlayer. iOS: AVPlayer first (AirPlay, Picture-in-Picture,
+ * lock-screen controls), switching to VLC for streams AVPlayer can't show.
+ */
+export function VideoSurface(props: VideoSurfaceProps) {
+  const vlcFallback = Platform.OS === 'ios' && isVlcAvailable;
+  // The stream that AVPlayer failed on; any other stream starts on AVPlayer again.
+  const [vlcUri, setVlcUri] = useState<string | null>(null);
+
+  // HEVC inside MPEG-TS (typical of 4K live channels): AVPlayer would play only the sound, and may not
+  // say so. Check the stream itself and hand it to VLC as soon as that's known.
+  const { uri } = props;
+  useEffect(() => {
+    if (!vlcFallback || !/\.m3u8(\?|$)/i.test(uri)) return;
+    let cancelled = false;
+    isHevcInTs(uri).then((hevc) => {
+      if (hevc && !cancelled) setVlcUri(uri);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [vlcFallback, uri]);
+
+  if (vlcFallback && (vlcUri === props.uri || VLC_FIRST.test(props.uri))) return <VlcSurface {...props} />;
+  const toVlc = () => setVlcUri(props.uri);
+  return <AppleSurface {...props} onError={vlcFallback ? toVlc : props.onError} onNoPicture={vlcFallback ? toVlc : undefined} />;
+}
+
+/** AVPlayer (iOS) / ExoPlayer (Android) through expo-video. */
+function AppleSurface({
   uri,
   isLive,
   title,
@@ -45,8 +80,12 @@ export function VideoSurface({
   onTracksChange,
   onEnded,
   onError,
+  onNoPicture,
   ref,
-}: VideoSurfaceProps) {
+}: VideoSurfaceProps & {
+  /** Playing, but no video track appeared: e.g. HEVC in MPEG-TS on iOS, where only the sound plays. */
+  onNoPicture?: () => void;
+}) {
   useKeepAwake();
   const resumed = useRef(false);
   const lastSaved = useRef(0);
@@ -85,6 +124,16 @@ export function VideoSurface({
       buffering: status === 'loading',
     });
   }, [status, error, isPlaying, isLive, startAt, player, onError, onStateChange]);
+
+  // Sound without picture: once playing, give AVPlayer a few seconds to report a video track.
+  useEffect(() => {
+    if (!onNoPicture || !isPlaying || status !== 'readyToPlay') return;
+    const timer = setTimeout(() => {
+      const video = player.videoTrack;
+      if (!video || !video.size?.width) onNoPicture();
+    }, NO_PICTURE_MS);
+    return () => clearTimeout(timer);
+  }, [onNoPicture, isPlaying, status, player]);
 
   useEventListener(player, 'timeUpdate', ({ currentTime }) => {
     const state: PlaybackState = {
