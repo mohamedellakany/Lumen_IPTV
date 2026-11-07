@@ -21,6 +21,12 @@ import { VideoSurface } from './VideoSurface';
 
 const SEEK_SECONDS = 15;
 const HIDE_AFTER_MS = 5000;
+// Remote scrubbing: presses closer together than this count as one continuous "hold".
+const SCRUB_STREAK_MS = 450;
+// After the last press, wait this long before actually seeking (so a hold seeks once, not 50 times).
+const SCRUB_COMMIT_MS = 900;
+/** Step size grows the longer ◀/▶/⏪/⏩ is held: 10s, then 30s, 1 min, 2 min. */
+const scrubStep = (streak: number) => (streak < 5 ? 10 : streak < 15 ? 30 : streak < 30 ? 60 : 120);
 const isTV = Platform.isTV;
 const isPhone = !isTV && Platform.OS !== 'web';
 
@@ -93,6 +99,11 @@ export function VodPlayer({
   const [seekFocused, setSeekFocused] = useState(false);
   const [activity, setActivity] = useState(0);
   const [osd, setOsd] = useState<{ amount: number; at: number } | null>(null);
+  // Remote scrubbing target in seconds: shown on the bar, sought once the presses stop.
+  const [scrub, setScrub] = useState<number | null>(null);
+  const scrubStreak = useRef({ count: 0, at: 0 });
+  // Running target, updated on every key repeat even if a render hasn't happened in between.
+  const scrubTarget = useRef<number | null>(null);
 
   const poke = useCallback(() => setActivity((a) => a + 1), []);
   const show = useCallback(() => {
@@ -122,6 +133,32 @@ export function VodPlayer({
     }));
   }, []);
 
+  // Move the scrub target; the video itself jumps once, shortly after the last press.
+  const nudge = (direction: 1 | -1) => {
+    const streak = scrubStreak.current;
+    const now = Date.now();
+    streak.count = now - streak.at < SCRUB_STREAK_MS ? streak.count + 1 : 0;
+    streak.at = now;
+    const from = scrubTarget.current ?? state.position;
+    const end = state.duration ? state.duration - 1 : Infinity;
+    scrubTarget.current = Math.max(0, Math.min(end, from + direction * scrubStep(streak.count)));
+    setScrub(scrubTarget.current);
+    show();
+  };
+
+  const commitScrub = useCallback((target: number) => {
+    scrubTarget.current = null;
+    surface.current?.seekTo(target);
+    setState((s) => ({ ...s, position: target }));
+    setScrub(null);
+  }, []);
+
+  useEffect(() => {
+    if (scrub === null) return;
+    const timer = setTimeout(() => commitScrub(scrub), SCRUB_COMMIT_MS);
+    return () => clearTimeout(timer);
+  }, [scrub, commitScrub]);
+
   const togglePlay = useCallback(() => {
     surface.current?.togglePlay();
     show();
@@ -150,18 +187,18 @@ export function VodPlayer({
       case 'playPause':
         return togglePlay();
       case 'fastForward':
-        return seek(SEEK_SECONDS);
+        return nudge(1);
       case 'rewind':
-        return seek(-SEEK_SECONDS);
+        return nudge(-1);
       case 'left':
       case 'right':
-        // Hidden controls or a focused progress bar: Left/Right skip 15s. Otherwise they move between buttons.
-        if (!visible || seekFocused || Platform.OS === 'web') {
-          seek(key === 'left' ? -SEEK_SECONDS : SEEK_SECONDS);
-          if (visible) poke();
-        } else poke();
+        // Hidden controls or a focused progress bar: Left/Right scrub. Otherwise they move between buttons.
+        if (!visible || seekFocused || Platform.OS === 'web') nudge(key === 'left' ? -1 : 1);
+        else poke();
         return;
       case 'select':
+        // OK while scrubbing: jump there now instead of waiting.
+        if (scrub !== null) return commitScrub(scrub);
         if (Platform.OS === 'web') return togglePlay();
         if (!visible) return show();
         return poke();
@@ -266,8 +303,9 @@ export function VodPlayer({
 
           <LinearGradient pointerEvents="box-none" colors={['transparent', 'rgba(0,0,0,0.6)', 'rgba(0,0,0,0.92)']} style={styles.bottom}>
             <SeekBar
-              position={state.position}
+              position={scrub ?? state.position}
               duration={state.duration}
+              preview={scrub !== null}
               focused={seekFocused}
               onFocusChange={setSeekFocused}
               onSeek={(seconds) => {
@@ -277,7 +315,7 @@ export function VodPlayer({
               }}
             />
             <View style={styles.timeRow}>
-              <Text style={styles.time}>{formatTime(state.position)}</Text>
+              <Text style={[styles.time, scrub !== null && styles.timeScrub]}>{formatTime(scrub ?? state.position)}</Text>
               <Text style={styles.time}>{state.duration ? formatTime(state.duration) : '--:--'}</Text>
             </View>
 
@@ -440,12 +478,15 @@ function ToolButton({
 function SeekBar({
   position,
   duration,
+  preview,
   focused,
   onFocusChange,
   onSeek,
 }: {
   position: number;
   duration: number;
+  /** Scrubbing with the remote: show the target time above the thumb. */
+  preview?: boolean;
   focused?: boolean;
   onFocusChange?: (focused: boolean) => void;
   onSeek?: (seconds: number) => void;
@@ -454,7 +495,7 @@ function SeekBar({
   const fraction = duration > 0 ? Math.min(1, position / duration) : 0;
   return (
     <Pressable
-      accessibilityLabel="Progress. Use left and right to skip 15 seconds."
+      accessibilityLabel="Progress. Use left and right to move through the video; hold to go faster."
       disabled={!onSeek || !duration}
       focusable={isTV && !!onSeek}
       onFocus={() => onFocusChange?.(true)}
@@ -469,7 +510,13 @@ function SeekBar({
       <View style={[styles.seekTrack, focused && styles.seekTrackFocused]}>
         <View style={[styles.seekFill, { width: `${fraction * 100}%` }]} />
       </View>
-      <View style={[styles.seekThumb, focused && styles.seekThumbFocused, { left: `${fraction * 100}%` }]} />
+      <View style={[styles.seekThumb, (focused || preview) && styles.seekThumbFocused, { left: `${fraction * 100}%` }]} />
+      {preview && (
+        // Centred on the thumb, but kept inside the bar at the very start and end.
+        <View pointerEvents="none" style={[styles.seekBubble, { left: Math.min(Math.max(fraction * width, 42), Math.max(42, width - 42)) }]}>
+          <Text style={styles.seekBubbleText}>{formatTime(position)}</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -599,6 +646,7 @@ const styles = StyleSheet.create({
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.xxl, paddingTop: spacing.xxl * 2, paddingBottom: spacing.lg },
   timeRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
   time: { color: '#fff', fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  timeScrub: { color: colors.primary, fontWeight: '800' },
   transport: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xxl * 2, marginTop: spacing.xs },
   transportButton: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   transportBig: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(255,255,255,0.22)' },
@@ -618,6 +666,17 @@ const styles = StyleSheet.create({
   toolFocused: { borderColor: colors.primary, backgroundColor: colors.primary, transform: [{ scale: 1.08 }] },
   toolCaption: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
   seekHit: { height: 26, justifyContent: 'center' },
+  seekBubble: {
+    position: 'absolute',
+    bottom: 26,
+    width: 84,
+    marginLeft: -42,
+    alignItems: 'center',
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+    backgroundColor: colors.primary,
+  },
+  seekBubbleText: { color: '#fff', fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
   seekTrack: { height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)', overflow: 'hidden' },
   seekTrackFocused: { height: 8, borderRadius: 4 },
   seekFill: { height: '100%', backgroundColor: colors.primary },

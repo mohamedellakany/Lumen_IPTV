@@ -11,13 +11,14 @@ import { CHANNEL_ROW_HEIGHT, ChannelRow } from '@/components/ChannelRow';
 import { ProgressBar } from '@/components/ProgressBar';
 import { LoadingState } from '@/components/StateViews';
 import { VideoSurface } from '@/components/player/VideoSurface';
+import { ResumePrompt } from '@/components/player/ResumePrompt';
 import { VodPlayer } from '@/components/player/VodPlayer';
 import { checkStream, describePlayerError, findAlternativeStream } from '@/api/streamCheck';
 import { useCatalog, useMovieInfo, useProvider, useSeriesInfo, useShortEpg } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
 import { useNow } from '@/hooks/useNow';
 import { useRemoteKeys } from '@/hooks/useRemoteKeys';
-import { inProgressFraction, isWatched, keyOf, libraryActions, useIsFavorite, useLibrary, useLibraryStore, type MediaRef } from '@/store/library';
+import { isWatched, keyOf, libraryActions, useIsFavorite, useLibrary, useLibraryStore, type MediaRef } from '@/store/library';
 import { useActiveProfile, useProfiles } from '@/store/profiles';
 import { useSettings } from '@/store/settings';
 import { colors, radius, spacing } from '@/theme';
@@ -43,6 +44,8 @@ interface Playable {
 
 // iOS (AVPlayer) can't play raw MPEG-TS, so live streams always use HLS there.
 const forcedHls = Platform.OS === 'ios';
+// From this many seconds in, reopening a movie/episode asks "Resume or start from beginning?".
+const MIN_RESUME_PROMPT = 60;
 
 export default function PlayerScreen() {
   const { kind, id, categoryId, list, seriesId, restart } = useLocalSearchParams<Params>();
@@ -148,12 +151,20 @@ export default function PlayerScreen() {
   const favorite = useIsFavorite(favoriteRef?.kind ?? 'live', favoriteRef?.id ?? '');
 
   // Resume position is read once per item, so saving progress doesn't re-trigger seeking.
-  const startAt = useMemo(() => {
+  const resume = useMemo(() => {
     if (!itemKey || restart === '1') return undefined;
     const profileId = useProfiles.getState().activeId;
     const progress = profileId ? useLibraryStore.getState().libraries[profileId]?.progress[itemKey] : undefined;
-    return inProgressFraction(progress) !== undefined ? progress!.position : undefined;
+    // Any stop from a minute in counts (not only the "in progress" range used for Continue Watching),
+    // except when it was basically finished.
+    if (!progress?.duration || progress.position < MIN_RESUME_PROMPT || isWatched(progress)) return undefined;
+    return { position: progress.position, duration: progress.duration };
   }, [itemKey, restart]);
+  // Movies/episodes watched for a while ask "Resume or start over?" before playing. The answer is kept
+  // per item, so retries and alternative streams of the same title don't ask again.
+  const [resumeChoice, setResumeChoice] = useState<{ key: string; at: number } | null>(null);
+  const askResume = !!itemKey && !!resume && resume.position >= MIN_RESUME_PROMPT && resumeChoice?.key !== itemKey;
+  const startAt = resumeChoice?.key === itemKey ? resumeChoice.at : resume?.position;
 
   useEffect(() => {
     if (playable) libraryActions().addRecent(playable.ref);
@@ -314,7 +325,18 @@ export default function PlayerScreen() {
     return (
       <View style={styles.safe}>
         <StatusBar hidden style="light" />
-        {playable ? (
+        {playable && askResume && resume && itemKey ? (
+          <ResumePrompt
+            title={playable.title}
+            subtitle={playable.subtitle}
+            artwork={playable.image}
+            position={resume.position}
+            duration={resume.duration}
+            onResume={() => setResumeChoice({ key: itemKey, at: resume.position })}
+            onRestart={() => setResumeChoice({ key: itemKey, at: 0 })}
+            onBack={goBack}
+          />
+        ) : playable ? (
           <VodPlayer
             key={streamKey}
             uri={playable.uri}

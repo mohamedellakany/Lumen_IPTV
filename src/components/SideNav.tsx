@@ -1,27 +1,23 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandLogo } from '@/components/BrandLogo';
+import { Glyph, SECTION_ICONS, type GlyphName } from '@/components/Glyph';
 import { useAccountInfo } from '@/hooks/useCatalog';
 import { useActiveProfile } from '@/store/profiles';
 import { colors, radius, spacing, tvFocus } from '@/theme';
 import { daysUntil } from '@/utils/format';
 
-type IconName = keyof typeof Ionicons.glyphMap;
-
 // Fire TV is ~540dp tall, so the rail is tighter there to fit without scrolling.
 const isTV = Platform.isTV;
 
-export const NAV_ICONS: Record<string, [IconName, IconName]> = {
-  home: ['home-outline', 'home'],
-  live: ['tv-outline', 'tv'],
-  movies: ['film-outline', 'film'],
-  series: ['albums-outline', 'albums'],
-  favorites: ['heart-outline', 'heart'],
-};
+const FALLBACK_ICON: [GlyphName, GlyphName] = [
+  { family: 'ion', name: 'ellipse-outline' },
+  { family: 'ion', name: 'ellipse' },
+];
+const SETTINGS_ICON: GlyphName = { family: 'ion', name: 'settings-outline' };
 
 /** Left navigation rail used instead of the bottom tab bar on tablets, desktop and TV. */
 /** `compact`: icons only, for phones held sideways. */
@@ -50,7 +46,7 @@ export function SideNav({ state, descriptors, emitter, navigateToTab, width, com
       <View style={styles.items}>
         {state.routes.map((route, index) => {
           const focused = state.index === index;
-          const [icon, activeIcon] = NAV_ICONS[route.name] ?? ['ellipse-outline', 'ellipse'];
+          const [icon, activeIcon] = SECTION_ICONS[route.name] ?? FALLBACK_ICON;
           const label = descriptors[route.key].options.title ?? route.name;
           return (
             <NavItem
@@ -66,7 +62,7 @@ export function SideNav({ state, descriptors, emitter, navigateToTab, width, com
             />
           );
         })}
-        <NavItem label="Settings" icon="settings-outline" compact={compact} onPress={() => router.push('/settings')} />
+        <NavItem label="Settings" icon={SETTINGS_ICON} compact={compact} onPress={() => router.push('/settings')} />
       </View>
 
       <AccountBadge compact={compact} />
@@ -74,7 +70,7 @@ export function SideNav({ state, descriptors, emitter, navigateToTab, width, com
   );
 }
 
-function NavItem({ label, icon, active, compact, onPress }: { label: string; icon: IconName; active?: boolean; compact?: boolean; onPress: () => void }) {
+function NavItem({ label, icon, active, compact, onPress }: { label: string; icon: GlyphName; active?: boolean; compact?: boolean; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="tab"
@@ -91,7 +87,7 @@ function NavItem({ label, icon, active, compact, onPress }: { label: string; ico
         tvFocus(focused),
       ]}
     >
-      <Ionicons name={icon} size={22} color={active ? '#fff' : colors.textDim} />
+      <Glyph icon={icon} size={22} color={active ? '#fff' : colors.textDim} />
       {!compact && (
         <Text style={[styles.itemLabel, active && styles.itemLabelActive]} numberOfLines={1}>
           {label}

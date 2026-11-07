@@ -9,6 +9,7 @@ import type { Movie, Series } from '@/api/types';
 import { Artwork } from '@/components/Artwork';
 import { IconButton } from '@/components/Button';
 import { ExitDialog } from '@/components/ExitDialog';
+import { Glyph, SECTION_ICONS, type GlyphName } from '@/components/Glyph';
 import { PosterCard } from '@/components/PosterCard';
 import { Rail } from '@/components/Rail';
 import { useAccountInfo, useCatalog, useMovieInfo, useSeriesInfo, recency, useRefreshCatalog, type RefreshResult } from '@/hooks/useCatalog';
@@ -24,8 +25,6 @@ const rememberHero = () => rememberFocus('hero');
 
 const FEATURED_COUNT = 5;
 const SLIDE_MS = 8000;
-
-type IconName = keyof typeof Ionicons.glyphMap;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -98,9 +97,9 @@ export default function HomeScreen() {
 
   const count = (n: number, noun: string) => (loadingCatalog && !n ? 'Loading…' : `${n.toLocaleString()} ${noun}`);
   const categories: CategoryProps[] = [
-    { id: 'live', label: 'Live TV', icon: 'tv', count: count(live.items.length, 'Channels'), gradient: ['#3D7BFF', '#2449D8', '#101E6B'], route: '/live' },
-    { id: 'movies', label: 'Movies', icon: 'film', count: count(movies.items.length, 'Movies'), gradient: ['#B04DFF', '#7428E0', '#2E0E73'], route: '/movies' },
-    { id: 'series', label: 'Series', icon: 'albums', count: count(series.items.length, 'Shows'), gradient: ['#1BC7A5', '#0E8C80', '#073F45'], route: '/series' },
+    { id: 'live', label: 'Live TV', icon: SECTION_ICONS.live[1], count: count(live.items.length, 'Channels'), gradient: ['#3D7BFF', '#2449D8', '#101E6B'], route: '/live' },
+    { id: 'movies', label: 'Movies', icon: SECTION_ICONS.movies[1], count: count(movies.items.length, 'Movies'), gradient: ['#B04DFF', '#7428E0', '#2E0E73'], route: '/movies' },
+    { id: 'series', label: 'Series', icon: SECTION_ICONS.series[1], count: count(series.items.length, 'Shows'), gradient: ['#1BC7A5', '#0E8C80', '#073F45'], route: '/series' },
   ];
 
   const pad = isWide ? spacing.xl : spacing.lg;
@@ -383,7 +382,7 @@ function FeaturedCarousel({
 interface CategoryProps {
   id: string;
   label: string;
-  icon: IconName;
+  icon: GlyphName;
   count: string;
   /** Three stops, light to dark, drawn diagonally. */
   gradient: [string, string, string];
@@ -420,15 +419,15 @@ function CategoryCard({ id, label, icon, count, gradient, route, height, stacked
         end={{ x: 0.6, y: 0.7 }}
         style={StyleSheet.absoluteFill}
       />
-      <Ionicons
-        name={icon}
+      <Glyph
+        icon={icon}
         size={Math.round(height * 1.05)}
         color="rgba(255,255,255,0.11)"
         style={[styles.categoryWatermark, { right: -height * 0.12, bottom: -height * 0.22 }]}
       />
       <View style={[styles.categoryBody, stacked ? styles.categoryBodyStacked : { paddingHorizontal: Math.round(height * 0.2) }]}>
         <View style={[styles.categoryBadge, { width: badge, height: badge, borderRadius: badge * 0.3 }]}>
-          <Ionicons name={icon} size={Math.round(badge * 0.52)} color="#fff" />
+          <Glyph icon={icon} size={Math.round(badge * 0.52)} color="#fff" />
         </View>
         <View style={stacked ? undefined : { flex: 1 }}>
           <Text style={[styles.categoryLabel, { fontSize: labelSize }]} numberOfLines={1}>

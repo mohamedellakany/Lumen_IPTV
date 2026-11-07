@@ -1,10 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Redirect } from 'expo-router';
 import type { ColorValue } from 'react-native';
 import { Tabs } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { NAV_ICONS, SideNav } from '@/components/SideNav';
+import { Glyph, SECTION_ICONS } from '@/components/Glyph';
+import { SideNav } from '@/components/SideNav';
 import { useLayout } from '@/hooks/useLayout';
 import { useActiveProfile } from '@/store/profiles';
 import { colors } from '@/theme';
@@ -12,7 +12,7 @@ import { colors } from '@/theme';
 const tab = (name: string, title: string) => ({
   title,
   tabBarIcon: ({ color, focused, size }: { color: ColorValue; focused: boolean; size: number }) => (
-    <Ionicons name={NAV_ICONS[name][focused ? 1 : 0]} size={size} color={color as string} />
+    <Glyph icon={SECTION_ICONS[name][focused ? 1 : 0]} size={size} color={color as string} />
   ),
 });
 

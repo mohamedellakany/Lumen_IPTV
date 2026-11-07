@@ -22,7 +22,9 @@ export function useLayout() {
   const contentWidth = width - navWidth - insets.right - sidebarWidth;
   const targetPoster = isTV ? 76 : width >= 1400 ? 170 : width >= 900 ? 150 : width >= 600 ? 130 : 108;
   const gap = spacing.md;
-  const columns = Math.max(2, Math.floor((contentWidth - spacing.lg * 2 + gap) / (targetPoster + gap)));
+  // Movie / series grids show five posters per row; four only if five would make them tiny.
+  const fitsFive = (contentWidth - spacing.lg * 2 - gap * 4) / 5 >= 72;
+  const columns = fitsFive ? 5 : 4;
   const posterWidth = Math.floor((contentWidth - spacing.lg * 2 - gap * (columns - 1)) / columns);
   return {
     width,

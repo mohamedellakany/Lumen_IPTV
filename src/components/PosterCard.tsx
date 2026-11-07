@@ -4,6 +4,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing, tvFocus } from '@/theme';
 import { Artwork } from './Artwork';
+import { MarqueeText } from './MarqueeText';
 import { ProgressBar } from './ProgressBar';
 
 interface Props {
@@ -69,9 +70,10 @@ export const PosterCard = memo(function PosterCard({
             )}
             {progress !== undefined && <ProgressBar value={progress} style={styles.progress} />}
           </View>
-          <Text style={styles.title} numberOfLines={shape === 'poster' && !Platform.isTV ? 2 : 1}>
+          {/* Long titles scroll to show the whole name: always on touch screens, on the focused poster on TV. */}
+          <MarqueeText style={styles.title} active={Platform.isTV ? focused : true}>
             {title}
-          </Text>
+          </MarqueeText>
           {!!subtitle && (
             <Text style={styles.subtitle} numberOfLines={1}>
               {subtitle}
