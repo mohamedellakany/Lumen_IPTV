@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { memo, type ComponentRef, type Ref } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { memo, useState, type ComponentRef, type Ref } from 'react';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing, tvFocus } from '@/theme';
 import { Artwork } from './Artwork';
@@ -38,6 +38,9 @@ export const PosterCard = memo(function PosterCard({
   ref,
 }: Props) {
   const height = shape === 'poster' ? width * 1.5 : width * 0.5625;
+  // TV: the poster under the remote grows smoothly instead of snapping to the bigger size.
+  const [scale] = useState(() => new Animated.Value(1));
+  const zoom = (to: number) => Animated.spring(scale, { toValue: to, speed: 22, bounciness: 5, useNativeDriver: true }).start();
   return (
     <Pressable
       ref={ref}
@@ -45,11 +48,15 @@ export const PosterCard = memo(function PosterCard({
       accessibilityLabel={title}
       onPress={onPress}
       onLongPress={onLongPress}
-      onFocus={onFocus}
+      onFocus={() => {
+        if (Platform.isTV) zoom(1.08);
+        onFocus?.();
+      }}
+      onBlur={Platform.isTV ? () => zoom(1) : undefined}
       style={({ pressed, focused }) => [{ width }, pressed && styles.pressed, focused && Platform.isTV && styles.focused]}
     >
       {({ focused }) => (
-        <>
+        <Animated.View style={{ transform: [{ scale }] }}>
           <View style={[styles.imageWrap, { height }, tvFocus(focused)]}>
             <Artwork
               uri={image}
@@ -79,7 +86,7 @@ export const PosterCard = memo(function PosterCard({
               {subtitle}
             </Text>
           )}
-        </>
+        </Animated.View>
       )}
     </Pressable>
   );
@@ -87,7 +94,8 @@ export const PosterCard = memo(function PosterCard({
 
 const styles = StyleSheet.create({
   pressed: { opacity: 0.75, transform: [{ scale: 0.97 }] },
-  focused: { transform: [{ scale: 1.06 }], zIndex: 1 },
+  // The zoom itself is animated (see `zoom`); this just keeps the focused poster above its neighbours.
+  focused: { zIndex: 1 },
   imageWrap: { borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.surfaceAlt },
   title: { color: colors.text, fontSize: Platform.isTV ? 11 : 13, fontWeight: '600', marginTop: spacing.xs + 2 },
   subtitle: { color: colors.textMuted, fontSize: 11, marginTop: 2 },

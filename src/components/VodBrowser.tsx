@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ComponentRef, type Ref } from 'react';
-import { FlatList, Platform, Pressable, StyleSheet, TVFocusGuideView, View } from 'react-native';
+import { FlatList, Platform, Pressable, StyleSheet, TVFocusGuideView, View, type LayoutChangeEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Movie, Series } from '@/api/types';
@@ -20,6 +20,8 @@ import { colors, spacing } from '@/theme';
 import { openMedia } from '@/utils/navigation';
 
 const ALL = '__all';
+const ROWS = 4;
+const MIN_POSTER = 72;
 const FAVORITES = '__fav';
 const RECENT = '__recent';
 
@@ -57,7 +59,7 @@ const GridCell = memo(function GridCell({ item, width, favorite, progress, onOpe
 
 export function VodBrowser({ kind }: { kind: 'movie' | 'series' }) {
   const router = useRouter();
-  const { isWide, isTV, columns, posterWidth, gap, rowGap } = useLayout();
+  const { isWide, isTV, columns, posterWidth, gap } = useLayout();
   const { categories, items, byId, isLoading, error, refetch } = useCatalog(kind);
   const library = useLibrary();
   const sortKey = kind === 'movie' ? 'movieSort' : 'seriesSort';
@@ -68,6 +70,19 @@ export function VodBrowser({ kind }: { kind: 'movie' | 'series' }) {
   const [showSort, setShowSort] = useState(false);
   const gridRef = useRef<FlatList<Movie | Series>>(null);
   const [focusSignal, setFocusSignal] = useState(0);
+  // Posters are sized so 4 rows fit the measured height, then as many columns as fill the width
+  // (at least the usual 5). Very short screens keep a minimum poster size and scroll instead.
+  const [gridSize, setGridSize] = useState({ width: 0, height: 0 });
+  const titleHeight = isTV ? 20 : 24;
+  const usableWidth = gridSize.width - spacing.lg * 2;
+  const fitWidth = Math.floor(((gridSize.height - spacing.md * 2 - gap * (ROWS - 1)) / ROWS - titleHeight) / 1.5);
+  const fitsRows = fitWidth >= MIN_POSTER;
+  const target = fitsRows ? fitWidth : MIN_POSTER;
+  // Rounding the column count up (when 4 rows fit) shrinks posters slightly rather than cutting row 4.
+  const fitColumns = (usableWidth + gap) / (target + gap);
+  const gridColumns = gridSize.width ? Math.max(columns, fitsRows ? Math.ceil(fitColumns) : Math.floor(fitColumns)) : columns;
+  const cellWidth = gridSize.width ? Math.floor((usableWidth - gap * (gridColumns - 1)) / gridColumns) : posterWidth;
+  const onGridLayout = (e: LayoutChangeEvent) => setGridSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height });
 
   // Movies: titles played most recently. Series: series whose episodes were played most recently.
   const recentItems = useMemo(() => {
@@ -146,13 +161,13 @@ export function VodBrowser({ kind }: { kind: 'movie' | 'series' }) {
       <GridCell
         ref={index === 0 ? setFirstCell : undefined}
         item={item}
-        width={posterWidth}
+        width={cellWidth}
         favorite={!!library.favorites[`${kind}:${item.id}`]}
         progress={kind === 'movie' ? inProgressFraction(library.progress[`movie:${item.id}`]) : undefined}
         onOpen={onOpen}
       />
     ),
-    [posterWidth, library.favorites, library.progress, kind, onOpen],
+    [cellWidth, library.favorites, library.progress, kind, onOpen],
   );
 
   const body = () => {
@@ -173,14 +188,14 @@ export function VodBrowser({ kind }: { kind: 'movie' | 'series' }) {
     return (
       <FlatList
         ref={gridRef}
-        key={`grid-${columns}`}
+        key={`grid-${gridColumns}`}
         data={visible}
-        numColumns={columns}
+        numColumns={gridColumns}
         keyExtractor={(i) => i.id}
         columnWrapperStyle={{ gap }}
-        contentContainerStyle={{ padding: spacing.lg, gap: rowGap }}
-        initialNumToRender={columns * 3}
-        maxToRenderPerBatch={columns * 2}
+        contentContainerStyle={{ paddingVertical: spacing.md, paddingHorizontal: spacing.lg, gap }}
+        initialNumToRender={gridColumns * (ROWS + 1)}
+        maxToRenderPerBatch={gridColumns * 2}
         updateCellsBatchingPeriod={30}
         windowSize={5}
         removeClippedSubviews={Platform.OS === 'android'}
@@ -191,18 +206,20 @@ export function VodBrowser({ kind }: { kind: 'movie' | 'series' }) {
   };
 
   const search = (
-    <SearchInput value={query} onChangeText={setQuery} placeholder={`Search ${label.toLowerCase()}`} style={isTV ? styles.searchTV : styles.search} />
+    <SearchInput value={query} onChangeText={setQuery} placeholder={`Search ${label.toLowerCase()}`} style={isWide ? styles.searchTV : styles.search} />
   );
   const sortButton = (
     <IconButton icon="swap-vertical" label="Sort" onPress={() => setShowSort((v) => !v)} color={showSort ? colors.primary : colors.text} />
   );
 
   const gridArea = isTV ? (
-    <TVFocusGuideView style={{ flex: 1 }} destinations={firstCell ? [firstCell] : undefined}>
+    <TVFocusGuideView style={{ flex: 1 }} destinations={firstCell ? [firstCell] : undefined} onLayout={onGridLayout}>
       {body()}
     </TVFocusGuideView>
   ) : (
-    <View style={{ flex: 1 }}>{body()}</View>
+    <View style={{ flex: 1 }} onLayout={onGridLayout}>
+      {body()}
+    </View>
   );
 
   return (
@@ -211,7 +228,7 @@ export function VodBrowser({ kind }: { kind: 'movie' | 'series' }) {
         title={label}
         subtitle={items.length ? `${items.length.toLocaleString()} titles` : undefined}
         right={
-          isTV ? (
+          isWide ? (
             <>
               {search}
               {sortButton}
@@ -221,7 +238,7 @@ export function VodBrowser({ kind }: { kind: 'movie' | 'series' }) {
           )
         }
       />
-      {!isTV && search}
+      {!isWide && search}
       {showSort && (
         <View style={styles.sort}>
           <Segmented options={SORT_OPTIONS} value={sort} onChange={(v) => setSettings({ [sortKey]: v })} />

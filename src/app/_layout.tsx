@@ -31,7 +31,12 @@ const theme = {
 };
 
 // Detail screens draw their backdrop under a transparent header.
-const detailHeader = { title: '', headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } };
+const detailHeader = {
+  title: '',
+  headerTransparent: true,
+  headerStyle: { backgroundColor: 'transparent' },
+  animation: 'fade_from_bottom' as const,
+};
 
 export default function RootLayout() {
   const hydrated = useStoresHydrated();

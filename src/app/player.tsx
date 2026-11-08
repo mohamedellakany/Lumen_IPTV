@@ -242,10 +242,10 @@ export default function PlayerScreen() {
     [itemKey],
   );
 
+  // Marks the item watched. Moving on to the next episode is handled by the player's "Next episode" card.
   const onEnded = useCallback(() => {
     if (itemKey && lastDuration.current) libraryActions().saveProgress(itemKey, lastDuration.current, lastDuration.current);
-    if (kind === 'episode' && nextEpisode && autoplayNext) router.setParams({ id: nextEpisode.id, restart: '' });
-  }, [itemKey, kind, nextEpisode, autoplayNext, router]);
+  }, [itemKey]);
 
   // Errors belong to a specific stream attempt, so switching channel or retrying clears them.
   const streamKey = playable ? `${playable.uri}#${attempt}` : '';
@@ -350,7 +350,13 @@ export default function PlayerScreen() {
             onBack={goBack}
             next={
               nextEpisode
-                ? { label: `Next: E${nextEpisode.episodeNum}`, onPress: () => router.setParams({ id: nextEpisode.id, restart: '' }) }
+                ? {
+                    label: `Next: E${nextEpisode.episodeNum}`,
+                    onPress: () => router.setParams({ id: nextEpisode.id, restart: '' }),
+                    title: `S${nextEpisode.season} E${nextEpisode.episodeNum} · ${nextEpisode.title}`,
+                    image: nextEpisode.image ?? playable.image,
+                    autoplay: autoplayNext,
+                  }
                 : undefined
             }
             favorite={favoriteRef ? { active: favorite, onToggle: () => libraryActions().toggleFavorite(favoriteRef) } : undefined}

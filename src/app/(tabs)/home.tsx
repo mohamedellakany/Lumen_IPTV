@@ -12,6 +12,7 @@ import { ExitDialog } from '@/components/ExitDialog';
 import { Glyph, SECTION_ICONS, type GlyphName } from '@/components/Glyph';
 import { PosterCard } from '@/components/PosterCard';
 import { Rail } from '@/components/Rail';
+import { StoryModal } from '@/components/StoryModal';
 import { useAccountInfo, useCatalog, useMovieInfo, useSeriesInfo, recency, useRefreshCatalog, type RefreshResult } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
 import { rememberFocus, useRememberedFocus } from '@/hooks/useRememberedFocus';
@@ -265,6 +266,7 @@ function FeaturedCarousel({
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [storyOpen, setStoryOpen] = useState(false);
   const { ref: heroRef, onFocus: onHeroFocus } = useRememberedFocus('hero');
   const item = items[Math.min(index, items.length - 1)];
 
@@ -279,10 +281,10 @@ function FeaturedCarousel({
     .join('  ·  ');
 
   useEffect(() => {
-    if (paused || items.length < 2) return;
+    if (paused || storyOpen || items.length < 2) return;
     const timer = setTimeout(() => setIndex((i) => (i + 1) % items.length), SLIDE_MS);
     return () => clearTimeout(timer);
-  }, [index, paused, items.length]);
+  }, [index, paused, storyOpen, items.length]);
 
   const play = () =>
     item.kind === 'movie' ? router.push({ pathname: '/player', params: { kind: 'movie', id: item.id } }) : openMedia(router, item);
@@ -327,9 +329,19 @@ function FeaturedCarousel({
         </Text>
         {!!meta && !dense && <Text style={styles.heroMeta}>{meta}</Text>}
         {!!plot && !tiny && (
-          <Text style={[styles.heroPlot, isWide && styles.heroPlotWide]} numberOfLines={dense ? 1 : 2}>
-            {plot}
-          </Text>
+          // A short preview; "More" opens the whole story.
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Read the full story of ${item.name}`}
+            {...focusHandlers}
+            onPress={() => setStoryOpen(true)}
+            style={({ pressed, focused }) => [styles.plotRow, pressed && { opacity: 0.8 }, tvFocus(focused)]}
+          >
+            <Text style={[styles.heroPlot, isWide && styles.heroPlotWide, styles.plotText]} numberOfLines={dense ? 1 : 2}>
+              {plot}
+            </Text>
+            <Text style={styles.plotMore}>More ›</Text>
+          </Pressable>
         )}
         <View style={styles.heroButtons}>
           <Pressable
@@ -375,6 +387,23 @@ function FeaturedCarousel({
           </View>
         )}
       </View>
+      {!!plot && (
+        <StoryModal
+          visible={storyOpen}
+          title={item.name}
+          poster={item.poster}
+          meta={meta}
+          plot={plot}
+          cast={info?.cast}
+          director={info?.director}
+          playLabel={item.kind === 'movie' ? 'Play' : 'Watch'}
+          onPlay={() => {
+            setStoryOpen(false);
+            play();
+          }}
+          onClose={() => setStoryOpen(false)}
+        />
+      )}
     </View>
   );
 }
@@ -494,6 +523,9 @@ const styles = StyleSheet.create({
   heroTitleWide: { fontSize: 44, letterSpacing: 3, textTransform: 'uppercase' },
   heroMeta: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
   heroPlot: { color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 20 },
+  plotRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, alignSelf: 'flex-start', borderRadius: radius.sm },
+  plotText: { flexShrink: 1 },
+  plotMore: { color: '#8FB0FF', fontSize: 14, fontWeight: '800', lineHeight: 20 },
   heroPlotWide: { fontSize: 17, lineHeight: 24 },
   heroButtons: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
   playButton: {

@@ -16,11 +16,14 @@ import {
 
 import { useRemoteKeys, type RemoteKey } from '@/hooks/useRemoteKeys';
 import { colors, radius, spacing } from '@/theme';
+import { UpNextCard } from './UpNextCard';
 import type { MediaTrack, PlaybackState, TrackInfo, VideoSurfaceHandle } from './types';
 import { VideoSurface } from './VideoSurface';
 
 const SEEK_SECONDS = 15;
 const HIDE_AFTER_MS = 5000;
+// The "Next episode" card appears this many seconds before an episode ends.
+const UP_NEXT_LEAD_SECONDS = 20;
 // Remote scrubbing: presses closer together than this count as one continuous "hold".
 const SCRUB_STREAK_MS = 450;
 // After the last press, wait this long before actually seeking (so a hold seeks once, not 50 times).
@@ -54,7 +57,8 @@ interface Props {
   onEnded: () => void;
   onError: (message: string) => void;
   onBack: () => void;
-  next?: { label: string; onPress: () => void };
+  /** Series: the following episode. `title`/`image`/`autoplay` drive the "Next episode" card at the end. */
+  next?: { label: string; onPress: () => void; title?: string; image?: string; autoplay?: boolean };
   favorite?: { active: boolean; onToggle: () => void };
   /** Series only: all episodes, for the LIST panel. */
   episodes?: EpisodeOption[];
@@ -104,6 +108,12 @@ export function VodPlayer({
   const scrubStreak = useRef({ count: 0, at: 0 });
   // Running target, updated on every key repeat even if a render hasn't happened in between.
   const scrubTarget = useRef<number | null>(null);
+  const [ended, setEnded] = useState(false);
+  const [upNextDismissed, setUpNextDismissed] = useState(false);
+  // Last seconds of an episode (or its end): offer the next one. Rewinding out of the window hides it.
+  const remaining = state.duration > 0 ? state.duration - state.position : Infinity;
+  const showUpNext =
+    !!next?.title && !upNextDismissed && !panel && (ended || (state.duration > 60 && remaining <= UP_NEXT_LEAD_SECONDS));
 
   const poke = useCallback(() => setActivity((a) => a + 1), []);
   const show = useCallback(() => {
@@ -159,6 +169,12 @@ export function VodPlayer({
     return () => clearTimeout(timer);
   }, [scrub, commitScrub]);
 
+  const handleEnded = () => {
+    onEnded();
+    setEnded(true);
+    if (next?.autoplay && !upNextDismissed) next.onPress();
+  };
+
   const togglePlay = useCallback(() => {
     surface.current?.togglePlay();
     show();
@@ -183,6 +199,7 @@ export function VodPlayer({
       return;
     }
     if (panel) return poke();
+    if (showUpNext && (key === 'left' || key === 'right' || key === 'select' || key === 'up' || key === 'down')) return;
     switch (key) {
       case 'playPause':
         return togglePlay();
@@ -216,6 +233,10 @@ export function VodPlayer({
         setPanel(null);
         return true;
       }
+      if (showUpNext) {
+        setUpNextDismissed(true);
+        return true;
+      }
       if (isTV && visible) {
         setVisible(false);
         return true;
@@ -223,7 +244,7 @@ export function VodPlayer({
       return false;
     });
     return () => sub.remove();
-  }, [panel, visible]);
+  }, [panel, visible, showUpNext]);
 
   const fitLabel = FITS.find((f) => f.value === fit)!.label;
   const cycleFit = () => {
@@ -245,7 +266,7 @@ export function VodPlayer({
         onProgress={onProgress}
         onStateChange={setState}
         onTracksChange={setTracks}
-        onEnded={onEnded}
+        onEnded={handleEnded}
         onError={onError}
       />
 
@@ -257,8 +278,8 @@ export function VodPlayer({
       <Pressable
         key={visible ? 'catcher-idle' : 'catcher-active'}
         accessibilityLabel={visible ? 'Hide controls' : 'Show controls'}
-        focusable={isTV && !visible && !panel}
-        hasTVPreferredFocus={isTV && !visible && !panel}
+        focusable={isTV && !visible && !panel && !showUpNext}
+        hasTVPreferredFocus={isTV && !visible && !panel && !showUpNext}
         style={StyleSheet.absoluteFill}
         onPress={() => (visible ? setVisible(false) : show())}
       />
@@ -402,6 +423,15 @@ export function VodPlayer({
             onSelectEpisode?.(id);
           }}
           onClose={() => setPanel(null)}
+        />
+      )}
+      {showUpNext && next?.title && (
+        <UpNextCard
+          title={next.title}
+          image={next.image}
+          autoplay={!!next.autoplay}
+          onPlay={next.onPress}
+          onCancel={() => setUpNextDismissed(true)}
         />
       )}
     </View>

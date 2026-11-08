@@ -28,6 +28,8 @@ export default function TabsLayout() {
       tabBar={isWide ? (props) => <SideNav {...props} width={navWidth} compact={compactNav} /> : undefined}
       screenOptions={{
         headerShown: false,
+        // Cross-fade between sections instead of an instant cut.
+        animation: 'fade',
         tabBarPosition: isWide ? 'left' : 'bottom',
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textMuted,
