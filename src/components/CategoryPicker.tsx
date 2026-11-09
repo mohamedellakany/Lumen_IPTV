@@ -4,6 +4,7 @@ import { FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useLayout } from '@/hooks/useLayout';
 import { colors, radius, spacing, tvFocus } from '@/theme';
+import { MarqueeText } from '@/components/MarqueeText';
 import { Text } from '@/components/Text';
 
 export interface PickerCategory {
@@ -33,10 +34,16 @@ interface RowProps {
 const Chip = memo(function Chip({ item, active, onSelect }: RowProps) {
   return (
     <Pressable onPress={() => onSelect(item.id)} style={({ focused }) => [styles.chip, active && styles.chipActive, tvFocus(focused)]}>
-      {item.icon && <Ionicons name={item.icon} size={14} color={active ? '#fff' : colors.textDim} />}
-      <Text style={[styles.chipLabel, active && styles.chipLabelActive]} numberOfLines={1}>
-        {item.name}
-      </Text>
+      {({ focused }) => (
+        <>
+          {item.icon && <Ionicons name={item.icon} size={14} color={active ? colors.onPrimary : colors.textDim} />}
+          <View style={styles.chipText}>
+            <MarqueeText style={[styles.chipLabel, active && styles.chipLabelActive]} active={active || focused}>
+              {item.name}
+            </MarqueeText>
+          </View>
+        </>
+      )}
     </Pressable>
   );
 });
@@ -48,11 +55,18 @@ const SidebarRow = memo(function SidebarRow({ item, active, onSelect, ref }: Row
       onPress={() => onSelect(item.id)}
       style={({ pressed, focused }) => [styles.row, active && styles.rowActive, pressed && { opacity: 0.7 }, tvFocus(focused)]}
     >
-      {item.icon && <Ionicons name={item.icon} size={16} color={active ? colors.text : colors.textDim} />}
-      <Text style={[styles.rowLabel, active && styles.rowLabelActive]} numberOfLines={1}>
-        {item.name}
-      </Text>
-      {item.count !== undefined && <Text style={styles.count}>{item.count}</Text>}
+      {({ focused }) => (
+        <>
+          {item.icon && <Ionicons name={item.icon} size={16} color={active ? colors.text : colors.textDim} />}
+          {/* Long names scroll on the row the remote is on and on the selected one. */}
+          <View style={styles.rowText}>
+            <MarqueeText style={[styles.rowLabel, active && styles.rowLabelActive]} active={active || focused}>
+              {item.name}
+            </MarqueeText>
+          </View>
+          {item.count !== undefined && <Text style={styles.count}>{item.count}</Text>}
+        </>
+      )}
     </Pressable>
   );
 });
@@ -130,6 +144,7 @@ const styles = StyleSheet.create({
     maxWidth: 220,
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { flexShrink: 1 },
   chipLabel: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
   chipLabelActive: { color: colors.onPrimary },
   sidebar: { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.border },
@@ -143,7 +158,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   rowActive: { backgroundColor: colors.primaryDim, borderLeftWidth: 3, borderLeftColor: colors.primary },
-  rowLabel: { flex: 1, color: colors.textDim, fontSize: tv ? 13 : 14 },
+  rowText: { flex: 1 },
+  rowLabel: { color: colors.textDim, fontSize: tv ? 13 : 14 },
   rowLabelActive: { color: colors.text, fontWeight: '700' },
   count: { color: colors.textMuted, fontSize: 12, fontVariant: ['tabular-nums'] },
 });

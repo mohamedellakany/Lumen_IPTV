@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, Platform, StyleSheet, View } from 'react-native';
 
 import { colors, spacing } from '@/theme';
 import { Text } from '@/components/Text';
@@ -51,5 +51,6 @@ const styles = StyleSheet.create({
   sectionCompact: { marginTop: spacing.sm },
   headerCompact: { marginBottom: 4 },
   titleCompact: { fontSize: 14 },
-  listCompact: { paddingHorizontal: spacing.lg, paddingVertical: 4, gap: spacing.sm },
+  // TV: the focused poster grows 8% and gets an outline; leave room so the row doesn't clip it.
+  listCompact: { paddingHorizontal: spacing.lg, paddingVertical: Platform.isTV ? 14 : 4, gap: spacing.sm },
 });

@@ -10,6 +10,8 @@ interface Props {
 }
 
 const PAUSE_MS = 1200;
+// Text whose first letter is Arabic reads right to left, so it scrolls the other way.
+const startsRtl = (text: string) => /^[^A-Za-z\u0600-\u06FF]*[\u0600-\u06FF]/.test(text);
 const SPEED_PX_PER_S = 35;
 
 /**
@@ -23,8 +25,12 @@ export function MarqueeText({ children, style, active = true }: Props) {
   const overflow = Math.ceil(textWidth - boxWidth);
   const scrolling = active && boxWidth > 0 && overflow > 2;
 
+  const rtl = startsRtl(children);
   useEffect(() => {
-    offset.setValue(0);
+    // Start where the text begins: the left for Latin, the right for Arabic.
+    const start = rtl ? -overflow : 0;
+    const end = rtl ? 0 : -overflow;
+    offset.setValue(scrolling ? start : 0);
     if (!scrolling) return;
     const duration = (overflow / SPEED_PX_PER_S) * 1000;
     // The native driver isn't available on web; the JS fallback is fine there.
@@ -32,14 +38,14 @@ export function MarqueeText({ children, style, active = true }: Props) {
     const loop = Animated.loop(
       Animated.sequence([
         Animated.delay(PAUSE_MS),
-        Animated.timing(offset, { toValue: -overflow, duration, easing: Easing.linear, useNativeDriver }),
+        Animated.timing(offset, { toValue: end, duration, easing: Easing.linear, useNativeDriver }),
         Animated.delay(PAUSE_MS),
-        Animated.timing(offset, { toValue: 0, duration: duration / 2, easing: Easing.inOut(Easing.quad), useNativeDriver }),
+        Animated.timing(offset, { toValue: start, duration: duration / 2, easing: Easing.inOut(Easing.quad), useNativeDriver }),
       ]),
     );
     loop.start();
     return () => loop.stop();
-  }, [scrolling, overflow, offset]);
+  }, [scrolling, overflow, offset, rtl]);
 
   return (
     <View style={styles.box} onLayout={(e) => setBoxWidth(e.nativeEvent.layout.width)}>

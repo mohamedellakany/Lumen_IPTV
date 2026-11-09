@@ -394,7 +394,10 @@ const EpisodeCard = memo(function EpisodeCard({
         {episode.title}
       </Text>
       <Text style={styles.tvCardMeta} numberOfLines={1}>
-        {[formatDuration(episode.durationSecs), watched && 'Watched'].filter(Boolean).join(' · ') || ' '}
+        {formatDuration(episode.durationSecs) || (watched ? '' : ' ')}
+        {watched && (
+          <Text style={styles.watched}>{formatDuration(episode.durationSecs) ? ' · Watched' : 'Watched'}</Text>
+        )}
       </Text>
     </Pressable>
   );
@@ -458,5 +461,6 @@ const styles = StyleSheet.create({
   },
   tvEpisodeBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   tvCardTitle: { color: colors.text, fontSize: 12, fontWeight: '600', marginTop: 5 },
+  watched: { color: colors.danger, fontWeight: '700' },
   tvCardMeta: { color: colors.textMuted, fontSize: 11 },
 });

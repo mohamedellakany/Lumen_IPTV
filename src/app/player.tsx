@@ -12,7 +12,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { LoadingState } from '@/components/StateViews';
 import { VideoSurface } from '@/components/player/VideoSurface';
 import { ResumePrompt } from '@/components/player/ResumePrompt';
-import { VodPlayer } from '@/components/player/VodPlayer';
+import { VodPlayer, WATCHED } from '@/components/player/VodPlayer';
 import { checkStream, describePlayerError, findAlternativeStream } from '@/api/streamCheck';
 import { useCatalog, useMovieInfo, useProvider, useSeriesInfo, useShortEpg } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
@@ -353,7 +353,11 @@ export default function PlayerScreen() {
               nextEpisode
                 ? {
                     label: `Next: E${nextEpisode.episodeNum}`,
-                    onPress: () => router.setParams({ id: nextEpisode.id, restart: '' }),
+                    onPress: () => {
+                      // Moving on during the credits counts as finishing this episode.
+                      onEnded();
+                      router.setParams({ id: nextEpisode.id, restart: '' });
+                    },
                     title: `S${nextEpisode.season} E${nextEpisode.episodeNum} · ${nextEpisode.title}`,
                     image: nextEpisode.image ?? playable.image,
                     autoplay: autoplayNext,
@@ -366,7 +370,7 @@ export default function PlayerScreen() {
                 ? episodes.map((e) => ({
                     id: e.id,
                     title: `S${e.season} E${e.episodeNum} · ${e.title}`,
-                    subtitle: isWatched(library.progress[`episode:${e.id}`]) ? 'Watched' : undefined,
+                    subtitle: isWatched(library.progress[`episode:${e.id}`]) ? WATCHED : undefined,
                     active: e.id === id,
                   }))
                 : undefined

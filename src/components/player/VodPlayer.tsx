@@ -13,7 +13,9 @@ import { Text } from '@/components/Text';
 const SEEK_SECONDS = 15;
 const HIDE_AFTER_MS = 5000;
 // The "Next episode" card appears this many seconds before an episode ends.
-const UP_NEXT_LEAD_SECONDS = 20;
+const UP_NEXT_LEAD_SECONDS = 120;
+/** Label for finished episodes in the Episodes list; shown in red. */
+export const WATCHED = 'Watched';
 // Remote scrubbing: presses closer together than this count as one continuous "hold".
 const SCRUB_STREAK_MS = 450;
 // After the last press, wait this long before actually seeking (so a hold seeks once, not 50 times).
@@ -114,7 +116,7 @@ export function VodPlayer({
   // Last seconds of an episode (or its end): offer the next one. Rewinding out of the window hides it.
   const remaining = state.duration > 0 ? state.duration - state.position : Infinity;
   const showUpNext =
-    !!next?.title && !upNextDismissed && !panel && (ended || (state.duration > 60 && remaining <= UP_NEXT_LEAD_SECONDS));
+    !!next?.title && !upNextDismissed && !panel && (ended || (state.duration > UP_NEXT_LEAD_SECONDS * 3 && remaining <= UP_NEXT_LEAD_SECONDS));
 
   const poke = useCallback(() => setActivity((a) => a + 1), []);
   const show = useCallback(() => {
@@ -659,7 +661,7 @@ function PanelRow({
           {label}
         </Text>
         {!!detail && (
-          <Text style={styles.panelDetail} numberOfLines={1}>
+          <Text style={[styles.panelDetail, detail === WATCHED && styles.panelWatched]} numberOfLines={1}>
             {detail}
           </Text>
         )}
@@ -733,4 +735,5 @@ const styles = StyleSheet.create({
   panelRowFocused: { backgroundColor: colors.surfaceAlt },
   panelLabel: { color: colors.textDim, fontSize: 15 },
   panelDetail: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  panelWatched: { color: colors.danger, fontWeight: '700' },
 });
