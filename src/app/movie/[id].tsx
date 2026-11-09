@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/Artwork';
 import { Button, IconButton } from '@/components/Button';
@@ -10,11 +11,12 @@ import { DetailHero } from '@/components/DetailHero';
 import { InfoSection } from '@/components/InfoSection';
 import { ProgressBar } from '@/components/ProgressBar';
 import { ErrorState, LoadingState } from '@/components/StateViews';
+import { StoryModal } from '@/components/StoryModal';
 import { useCatalog, useMovieInfo } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
 import { resetFocus, useRememberedFocus } from '@/hooks/useRememberedFocus';
 import { inProgressFraction, libraryActions, useIsFavorite, useLibrary } from '@/store/library';
-import { colors, radius, spacing } from '@/theme';
+import { colors, radius, spacing, tvFocus } from '@/theme';
 import { formatDuration, yearOf } from '@/utils/format';
 
 export default function MovieScreen() {
@@ -27,7 +29,12 @@ export default function MovieScreen() {
   const favorite = useIsFavorite('movie', id);
   const progress = library.progress[`movie:${id}`];
   const fraction = inProgressFraction(progress);
-  const { isTV } = useLayout();
+  const { isTV, width, height } = useLayout();
+  const insets = useSafeAreaInsets();
+  // TV, tablets and anything held sideways: the whole page on one screen, no scrolling.
+  const oneScreen = isTV || Math.min(width, height) >= 600 || width > height;
+  const short = !isTV && height < 500;
+  const [storyOpen, setStoryOpen] = useState(false);
   const playFocus = useRememberedFocus('play', 'movie');
   const restartFocus = useRememberedFocus('restart', 'movie');
   const favFocus = useRememberedFocus('fav', 'movie');
@@ -51,8 +58,9 @@ export default function MovieScreen() {
   const meta = [yearOf(info.data?.releaseDate), formatDuration(info.data?.durationSecs), (info.data?.ext ?? movie?.ext)?.toUpperCase()];
   const rating = info.data?.rating ?? movie?.rating;
 
-  // TV: everything on one screen (no scrolling), like a streaming app's details page.
-  if (isTV) {
+  // One screen (no scrolling), like a streaming app's details page. Touch screens get a Back button;
+  // the story is a preview that opens in full when selected.
+  if (oneScreen) {
     const credits = (
       [
         ['Director', info.data?.director],
@@ -72,8 +80,22 @@ export default function MovieScreen() {
           style={StyleSheet.absoluteFill}
         />
         <LinearGradient colors={['transparent', 'rgba(11,13,18,0.8)']} style={StyleSheet.absoluteFill} />
-        <View style={styles.tvBody}>
-          <Artwork uri={poster} name={name} style={styles.tvPoster} />
+        {!isTV && (
+          <IconButton
+            icon="arrow-back"
+            label="Back"
+            onPress={() => router.back()}
+            style={[styles.backButton, { top: insets.top + spacing.sm, left: insets.left + spacing.md }]}
+          />
+        )}
+        <View
+          style={[
+            styles.tvBody,
+            !isTV && { paddingTop: insets.top + 60, paddingBottom: insets.bottom + spacing.lg, paddingLeft: insets.left + 48, paddingRight: insets.right + 48 },
+            short && styles.tvBodyShort,
+          ]}
+        >
+          <Artwork uri={poster} name={name} style={[styles.tvPoster, !isTV && { maxHeight: Math.min(560, height * 0.72) }]} />
           <View style={styles.tvInfo}>
             <Text style={styles.tvTitle} numberOfLines={2}>
               {name}
@@ -134,11 +156,19 @@ export default function MovieScreen() {
             ) : (
               <>
                 {!!info.data?.plot && (
-                  <Text style={styles.tvPlot} numberOfLines={5}>
-                    {info.data.plot}
-                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Read the full story"
+                    onPress={() => setStoryOpen(true)}
+                    style={({ focused }) => [styles.storyPress, tvFocus(focused)]}
+                  >
+                    <Text style={styles.tvPlot} numberOfLines={short ? 3 : isTV ? 5 : 7}>
+                      {info.data.plot}
+                    </Text>
+                    <Text style={styles.storyMore}>Read more ›</Text>
+                  </Pressable>
                 )}
-                {credits.map(([label, value]) => (
+                {(short ? credits.slice(0, 1) : credits).map(([label, value]) => (
                   <Text key={label} style={styles.tvCredit} numberOfLines={1}>
                     <Text style={styles.tvCreditLabel}>{label}: </Text>
                     {value}
@@ -148,6 +178,23 @@ export default function MovieScreen() {
             )}
           </View>
         </View>
+        {!!info.data?.plot && (
+          <StoryModal
+            visible={storyOpen}
+            title={name}
+            poster={poster}
+            meta={[rating ? `★ ${rating.toFixed(1)}` : undefined, info.data.genre, ...meta].filter(Boolean).join('  ·  ')}
+            plot={info.data.plot}
+            cast={info.data.cast}
+            director={info.data.director}
+            playLabel={fraction ? 'Resume' : 'Play'}
+            onPlay={() => {
+              setStoryOpen(false);
+              play();
+            }}
+            onClose={() => setStoryOpen(false)}
+          />
+        )}
       </View>
     );
   }
@@ -214,6 +261,10 @@ const styles = StyleSheet.create({
   iconAction: { backgroundColor: colors.surfaceAlt, padding: 12 },
   progress: { marginTop: spacing.md, maxWidth: 360 },
   tvBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xxl, paddingHorizontal: 48, paddingVertical: 36 },
+  tvBodyShort: { gap: spacing.xl },
+  backButton: { position: 'absolute', zIndex: 2, backgroundColor: 'rgba(0,0,0,0.45)' },
+  storyPress: { borderRadius: radius.sm, alignSelf: 'flex-start' },
+  storyMore: { color: '#8FB0FF', fontSize: 13, fontWeight: '800', marginTop: 2 },
   tvPoster: {
     height: '100%',
     maxHeight: 420,

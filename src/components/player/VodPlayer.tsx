@@ -96,6 +96,17 @@ export function VodPlayer({
 }: Props) {
   const surface = useRef<VideoSurfaceHandle>(null);
   const [state, setState] = useState<PlaybackState>({ playing: false, position: startAt ?? 0, duration: 0, buffering: true });
+  // Spinner only while the picture is really stuck: engines can report "buffering" while playing fine
+  // (VLC on iOS does), so a buffering flag with the position still moving doesn't count.
+  const [stalled, setStalled] = useState(true);
+  const lastAdvance = useRef({ position: startAt ?? 0, at: 0 });
+  const onSurfaceState = useCallback((next: PlaybackState) => {
+    const now = Date.now();
+    const seen = lastAdvance.current;
+    if (Math.abs(next.position - seen.position) > 0.05) lastAdvance.current = { position: next.position, at: now };
+    setStalled(next.buffering && now - lastAdvance.current.at > 1200);
+    setState(next);
+  }, []);
   const [tracks, setTracks] = useState<TrackInfo>({ audio: [], subtitles: [] });
   const [visible, setVisible] = useState(true);
   const [panel, setPanel] = useState<Panel>(null);
@@ -264,7 +275,7 @@ export function VodPlayer({
         contentFit={fit}
         startAt={startAt}
         onProgress={onProgress}
-        onStateChange={setState}
+        onStateChange={onSurfaceState}
         onTracksChange={setTracks}
         onEnded={handleEnded}
         onError={onError}
@@ -284,7 +295,7 @@ export function VodPlayer({
         onPress={() => (visible ? setVisible(false) : show())}
       />
 
-      {state.buffering && (
+      {stalled && (
         <View pointerEvents="none" style={styles.center}>
           <ActivityIndicator size="large" color="#fff" />
         </View>

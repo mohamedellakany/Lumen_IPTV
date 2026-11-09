@@ -9,9 +9,9 @@ import type { Movie, Series } from '@/api/types';
 import { Artwork } from '@/components/Artwork';
 import { IconButton } from '@/components/Button';
 import { ExitDialog } from '@/components/ExitDialog';
-import { Glyph, SECTION_ICONS, type GlyphName } from '@/components/Glyph';
 import { PosterCard } from '@/components/PosterCard';
 import { Rail } from '@/components/Rail';
+import { ICON_ACCENT, SECTION_ICON_COMPONENTS, type SectionKey } from '@/components/SectionIcons';
 import { StoryModal } from '@/components/StoryModal';
 import { useAccountInfo, useCatalog, useMovieInfo, useSeriesInfo, recency, useRefreshCatalog, type RefreshResult } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
@@ -98,9 +98,9 @@ export default function HomeScreen() {
 
   const count = (n: number, noun: string) => (loadingCatalog && !n ? 'Loading…' : `${n.toLocaleString()} ${noun}`);
   const categories: CategoryProps[] = [
-    { id: 'live', label: 'Live TV', icon: SECTION_ICONS.live[1], count: count(live.items.length, 'Channels'), gradient: ['#3D7BFF', '#2449D8', '#101E6B'], route: '/live' },
-    { id: 'movies', label: 'Movies', icon: SECTION_ICONS.movies[1], count: count(movies.items.length, 'Movies'), gradient: ['#B04DFF', '#7428E0', '#2E0E73'], route: '/movies' },
-    { id: 'series', label: 'Series', icon: SECTION_ICONS.series[1], count: count(series.items.length, 'Shows'), gradient: ['#1BC7A5', '#0E8C80', '#073F45'], route: '/series' },
+    { id: 'live', label: 'Live TV', count: count(live.items.length, 'Channels'), route: '/live' },
+    { id: 'movies', label: 'Movies', count: count(movies.items.length, 'Movies'), route: '/movies' },
+    { id: 'series', label: 'Series', count: count(series.items.length, 'Shows'), route: '/series' },
   ];
 
   const pad = isWide ? spacing.xl : spacing.lg;
@@ -409,22 +409,24 @@ function FeaturedCarousel({
 }
 
 interface CategoryProps {
-  id: string;
+  id: SectionKey;
   label: string;
-  icon: GlyphName;
   count: string;
-  /** Three stops, light to dark, drawn diagonally. */
-  gradient: [string, string, string];
   route: Href;
 }
 
-/** Big gradient tile for a section. Row layout when wide; stacked (icon above text) on phones. */
-function CategoryCard({ id, label, icon, count, gradient, route, height, stacked, arrow }: CategoryProps & { height: number; stacked: boolean; arrow: boolean }) {
+/**
+ * Section card: frosted dark glass, name and count on the left, a big outline icon (white with one
+ * yellow detail) on the right. Stacked on narrow cards (phones held upright): icon above the text.
+ */
+function CategoryCard({ id, label, count, route, height, stacked }: CategoryProps & { height: number; stacked: boolean; arrow?: boolean }) {
   const router = useRouter();
   const { ref, onFocus } = useRememberedFocus(id);
+  const Icon = SECTION_ICON_COMPONENTS[id];
   // Everything inside scales with the card, so it reads well from a phone to a TV across the room.
-  const badge = Math.round(Math.min(78, Math.max(40, height * (stacked ? 0.36 : 0.46))));
+  const iconSize = Math.round(Math.min(96, Math.max(40, height * (stacked ? 0.4 : 0.6))));
   const labelSize = Math.round(Math.min(28, Math.max(16, height * (stacked ? 0.13 : 0.17))));
+  const pad = Math.round(Math.max(spacing.md, height * 0.17));
   return (
     <Pressable
       ref={ref}
@@ -437,41 +439,47 @@ function CategoryCard({ id, label, icon, count, gradient, route, height, stacked
         { height },
         pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
         focused && Platform.isTV && styles.categoryFocused,
-        tvFocus(focused),
       ]}
     >
-      <LinearGradient colors={gradient} locations={[0, 0.55, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      {/* Soft light from the top-left corner, like a glossy panel. */}
       <LinearGradient
-        colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0)']}
+        colors={['rgba(255,255,255,0.13)', 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.03)']}
+        locations={[0, 0.6, 1]}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0.6, y: 0.7 }}
+        end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <Glyph
-        icon={icon}
-        size={Math.round(height * 1.05)}
-        color="rgba(255,255,255,0.11)"
-        style={[styles.categoryWatermark, { right: -height * 0.12, bottom: -height * 0.22 }]}
+      {/* Sheen along the top edge, like light on glass. */}
+      <LinearGradient
+        colors={['rgba(255,255,255,0.16)', 'rgba(255,255,255,0)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 0.45 }}
+        style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.categoryBody, stacked ? styles.categoryBodyStacked : { paddingHorizontal: Math.round(height * 0.2) }]}>
-        <View style={[styles.categoryBadge, { width: badge, height: badge, borderRadius: badge * 0.3 }]}>
-          <Glyph icon={icon} size={Math.round(badge * 0.52)} color="#fff" />
-        </View>
-        <View style={stacked ? undefined : { flex: 1 }}>
-          <Text style={[styles.categoryLabel, { fontSize: labelSize }]} numberOfLines={1}>
-            {label}
-          </Text>
-          <Text style={[styles.categoryCount, { fontSize: Math.max(12, Math.round(labelSize * 0.55)) }]} numberOfLines={1}>
-            {count}
-          </Text>
-        </View>
-        {!stacked && arrow && (
-          <View style={[styles.chevron, { width: badge * 0.5, height: badge * 0.5, borderRadius: badge * 0.25 }]}>
-            <Ionicons name="arrow-forward" size={Math.round(badge * 0.26)} color="#fff" />
+      {stacked ? (
+        <View style={[styles.categoryStacked, { padding: spacing.md }]}>
+          <Icon size={iconSize} />
+          <View>
+            <Text style={[styles.categoryLabel, { fontSize: labelSize }]} numberOfLines={1}>
+              {label}
+            </Text>
+            <Text style={[styles.categoryCount, { fontSize: Math.max(12, Math.round(labelSize * 0.55)) }]} numberOfLines={1}>
+              {count}
+            </Text>
           </View>
-        )}
-      </View>
+        </View>
+      ) : (
+        <View style={[styles.categoryRow, { paddingHorizontal: pad, paddingVertical: Math.round(pad * 0.8) }]}>
+          <View style={styles.categoryText}>
+            <Text style={[styles.categoryLabel, { fontSize: labelSize }]} numberOfLines={1}>
+              {label}
+            </Text>
+            <Text style={[styles.categoryCount, { fontSize: Math.max(12, Math.round(labelSize * 0.55)) }]} numberOfLines={1}>
+              {count}
+            </Text>
+          </View>
+          <Icon size={iconSize} />
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -576,23 +584,17 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: radius.lg + 4,
     overflow: 'hidden',
+    backgroundColor: 'rgba(20,24,34,0.72)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
+    borderColor: 'rgba(255,255,255,0.16)',
   },
-  categoryFocused: { transform: [{ scale: 1.04 }], zIndex: 1 },
-  categoryWatermark: { position: 'absolute', transform: [{ rotate: '-12deg' }] },
-  categoryBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  categoryBodyStacked: { flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: spacing.sm, padding: spacing.md },
-  categoryBadge: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.32)',
-  },
+  // TV: the card under the remote grows a little and picks up the yellow accent on its edge.
+  categoryFocused: { transform: [{ scale: 1.04 }], zIndex: 1, borderColor: ICON_ACCENT, borderWidth: 2 },
+  categoryRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  categoryText: { flex: 1, alignSelf: 'stretch', justifyContent: 'space-between' },
+  categoryStacked: { flex: 1, justifyContent: 'center', gap: spacing.sm },
   categoryLabel: { color: '#fff', fontWeight: '800', letterSpacing: 0.3 },
-  categoryCount: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginTop: 2 },
-  chevron: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.28)' },
+  categoryCount: { color: 'rgba(255,255,255,0.75)', fontWeight: '600', marginTop: 2 },
   heroSpace: { flex: 1, minHeight: 120 },
   statusPill: {
     flexDirection: 'row',

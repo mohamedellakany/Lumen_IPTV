@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { FlatList, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Episode } from '@/api/types';
 import { Artwork } from '@/components/Artwork';
@@ -12,17 +13,26 @@ import { InfoSection } from '@/components/InfoSection';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Segmented } from '@/components/Segmented';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
+import { StoryModal } from '@/components/StoryModal';
 import { useCatalog, useSeriesInfo } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
 import { resetFocus, useRememberedFocus } from '@/hooks/useRememberedFocus';
 import { inProgressFraction, isWatched, libraryActions, useIsFavorite, useLibrary, type Progress } from '@/store/library';
-import { colors, radius, spacing } from '@/theme';
+import { colors, radius, spacing, tvFocus } from '@/theme';
 import { formatDuration, yearOf } from '@/utils/format';
 
 export default function SeriesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { isTV } = useLayout();
+  const { isTV, width, height } = useLayout();
+  const insets = useSafeAreaInsets();
+  // TV, tablets and anything held sideways: the whole page on one screen, no scrolling.
+  const oneScreen = isTV || Math.min(width, height) >= 600 || width > height;
+  const short = !isTV && height < 500;
+  const [storyOpen, setStoryOpen] = useState(false);
+  // Episode cards: bigger on tall screens, smaller on short ones. Off TV, the episode row keeps its
+  // natural height and the top section (poster + info) takes whatever is left.
+  const cardWidth = isTV ? EPISODE_CARD : height >= 700 ? 230 : short ? 140 : EPISODE_CARD;
   const playFocus = useRememberedFocus('play', 'series');
   const favFocus = useRememberedFocus('fav', 'series');
   const trailerFocus = useRememberedFocus('trailer', 'series');
@@ -70,8 +80,9 @@ export default function SeriesScreen() {
     seasons.length ? `${seasons.length} season${seasons.length === 1 ? '' : 's'}` : undefined,
   ];
 
-  // TV: everything on one screen, with the selected season's episodes in a single row (◀ ▶ to browse).
-  if (isTV) {
+  // One screen, with the selected season's episodes in a single row (◀ ▶ or swipe to browse).
+  // Touch screens get a Back button; the story is a preview that opens in full when selected.
+  if (oneScreen) {
     const plot = info.data?.plot ?? series?.plot;
     const credits = (
       [
@@ -100,7 +111,25 @@ export default function SeriesScreen() {
           style={StyleSheet.absoluteFill}
         />
 
-        <View style={styles.tvTop}>
+        {!isTV && (
+          <IconButton
+            icon="arrow-back"
+            label="Back"
+            onPress={() => router.back()}
+            style={[styles.backButton, { top: insets.top + spacing.sm, left: insets.left + spacing.md }]}
+          />
+        )}
+        <View
+          style={[
+            isTV ? styles.tvTop : styles.touchTop,
+            !isTV && {
+              marginTop: insets.top,
+              paddingTop: short ? spacing.sm : 28,
+              paddingLeft: insets.left + 72,
+              paddingRight: insets.right + 40,
+            },
+          ]}
+        >
           <Artwork uri={poster} name={name} style={styles.tvPoster} />
           <View style={styles.tvInfo}>
             <Text style={styles.tvTitle} numberOfLines={1}>
@@ -154,11 +183,19 @@ export default function SeriesScreen() {
               )}
             </View>
             {!!plot && (
-              <Text style={styles.tvPlot} numberOfLines={3}>
-                {plot}
-              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Read the full story"
+                onPress={() => setStoryOpen(true)}
+                style={({ focused }) => [styles.storyPress, tvFocus(focused)]}
+              >
+                <Text style={styles.tvPlot} numberOfLines={short ? 1 : isTV ? 3 : 5}>
+                  {plot}
+                </Text>
+                <Text style={styles.storyMore}>Read more ›</Text>
+              </Pressable>
             )}
-            {credits.map(([label, value]) => (
+            {(short ? [] : credits).map(([label, value]) => (
               <Text key={label} style={styles.tvCredit} numberOfLines={1}>
                 <Text style={styles.tvCreditLabel}>{label}: </Text>
                 {value}
@@ -167,7 +204,7 @@ export default function SeriesScreen() {
           </View>
         </View>
 
-        <View style={styles.tvEpisodes}>
+        <View style={isTV ? styles.tvEpisodes : [styles.touchEpisodes, { paddingBottom: insets.bottom + spacing.md }]}>
           {info.isLoading ? (
             <Text style={styles.tvCredit}>Loading episodes…</Text>
           ) : seasons.length === 0 ? (
@@ -187,16 +224,42 @@ export default function SeriesScreen() {
                 data={episodes}
                 keyExtractor={(e) => e.id}
                 initialScrollIndex={startIndex}
-                getItemLayout={(_, index) => ({ length: EPISODE_CARD + spacing.md, offset: (EPISODE_CARD + spacing.md) * index, index })}
+                getItemLayout={(_, index) => ({ length: cardWidth + spacing.md, offset: (cardWidth + spacing.md) * index, index })}
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tvEpisodeList}
+                contentContainerStyle={[styles.tvEpisodeList, !isTV && { paddingLeft: insets.left + 40 }]}
+                // Off TV the row sits in a natural-height block, so it needs an explicit height:
+                // card padding/border (12) + 16:9 thumbnail + title and length lines (34) + list padding (12).
+                style={isTV ? undefined : { height: (cardWidth - 12) * 0.5625 + 58 }}
                 renderItem={({ item }) => (
-                  <EpisodeCard episode={item} fallbackImage={poster} progress={library.progress[`episode:${item.id}`]} onPlay={play} />
+                  <EpisodeCard
+                    episode={item}
+                    width={cardWidth}
+                    fallbackImage={poster}
+                    progress={library.progress[`episode:${item.id}`]}
+                    onPlay={play}
+                  />
                 )}
               />
             </>
           )}
         </View>
+        {!!plot && (
+          <StoryModal
+            visible={storyOpen}
+            title={name}
+            poster={poster}
+            meta={[rating ? `★ ${rating.toFixed(1)}` : undefined, info.data?.genre ?? series?.genre, ...meta].filter(Boolean).join('  ·  ')}
+            plot={plot}
+            cast={info.data?.cast}
+            director={info.data?.director}
+            playLabel={upNext.episode ? `${upNext.resume ? 'Resume' : 'Play'} S${upNext.episode.season} E${upNext.episode.episodeNum}` : 'Close'}
+            onPlay={() => {
+              setStoryOpen(false);
+              if (upNext.episode) play(upNext.episode);
+            }}
+            onClose={() => setStoryOpen(false)}
+          />
+        )}
       </View>
     );
   }
@@ -276,7 +339,7 @@ export default function SeriesScreen() {
             showsHorizontalScrollIndicator={Platform.OS === 'web'}
             contentContainerStyle={styles.episodeRow}
             renderItem={({ item }) => (
-              <EpisodeCard episode={item} fallbackImage={poster} progress={library.progress[`episode:${item.id}`]} onPlay={play} />
+              <EpisodeCard episode={item} width={EPISODE_CARD} fallbackImage={poster} progress={library.progress[`episode:${item.id}`]} onPlay={play} />
             )}
           />
         </>
@@ -289,11 +352,13 @@ const EPISODE_CARD = 176;
 
 const EpisodeCard = memo(function EpisodeCard({
   episode,
+  width,
   fallbackImage,
   progress,
   onPlay,
 }: {
   episode: Episode;
+  width: number;
   fallbackImage?: string;
   progress?: Progress;
   onPlay: (episode: Episode) => void;
@@ -308,7 +373,7 @@ const EpisodeCard = memo(function EpisodeCard({
       accessibilityLabel={`Episode ${episode.episodeNum}: ${episode.title}`}
       onFocus={onFocus}
       onPress={() => onPlay(episode)}
-      style={({ focused, pressed }) => [styles.tvCard, focused && styles.tvCardFocused, pressed && { opacity: 0.8 }]}
+      style={({ focused, pressed }) => [styles.tvCard, { width }, focused && styles.tvCardFocused, pressed && { opacity: 0.8 }]}
     >
       <View style={styles.tvThumbWrap}>
         <Artwork uri={episode.image || fallbackImage} name={episode.title} style={styles.thumb} />
@@ -355,6 +420,13 @@ const styles = StyleSheet.create({
   },
   thumbProgress: { position: 'absolute', left: 0, right: 0, bottom: 0, borderRadius: 0 },
   tvTop: { flexDirection: 'row', gap: spacing.xl, paddingHorizontal: 40, paddingTop: 28, height: 300 },
+  // Touch screens: the top section fills what the episode row leaves (and may shrink to it).
+  touchTop: { flexDirection: 'row', gap: spacing.xl, flex: 1, minHeight: 0, maxHeight: 520, overflow: 'hidden' },
+  // ...and the episode block keeps its natural height at the bottom (never shrinks).
+  touchEpisodes: { flexGrow: 0, flexShrink: 0, marginTop: 'auto' },
+  backButton: { position: 'absolute', zIndex: 2, backgroundColor: 'rgba(0,0,0,0.45)' },
+  storyPress: { borderRadius: radius.sm, alignSelf: 'flex-start' },
+  storyMore: { color: '#8FB0FF', fontSize: 12, fontWeight: '800', marginTop: 2 },
   tvPoster: { height: '100%', aspectRatio: 2 / 3, borderRadius: radius.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
   tvInfo: { flex: 1, maxWidth: 680, gap: 6, justifyContent: 'center' },
   tvTitle: { color: colors.text, fontSize: 26, fontWeight: '800' },
@@ -371,7 +443,7 @@ const styles = StyleSheet.create({
   tvSeasons: { marginBottom: spacing.sm, marginLeft: 40 - spacing.lg },
   episodeRow: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm, gap: spacing.md },
   tvEpisodeList: { paddingHorizontal: 40, gap: spacing.md, paddingVertical: 6 },
-  tvCard: { width: EPISODE_CARD, borderRadius: radius.md, padding: 4, borderWidth: 2, borderColor: 'transparent' },
+  tvCard: { borderRadius: radius.md, padding: 4, borderWidth: 2, borderColor: 'transparent' },
   tvCardFocused: { borderColor: colors.primary, backgroundColor: colors.primaryDim, transform: [{ scale: 1.05 }] },
   tvThumbWrap: { width: '100%', aspectRatio: 16 / 9, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: colors.surfaceAlt },
   tvEpisodeBadge: {

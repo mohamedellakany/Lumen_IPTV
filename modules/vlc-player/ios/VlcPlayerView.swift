@@ -136,7 +136,8 @@ class VlcPlayerView: ExpoView {
       "playing": player.isPlaying,
       "position": position,
       "duration": isLive ? 0 : max(0, length),
-      "buffering": state == .opening || state == .buffering,
+      // libVLC often stays in .buffering while it is in fact playing; only count it when nothing plays.
+      "buffering": !player.isPlaying && (state == .opening || state == .buffering),
     ])
 
     if state == .ended, !reportedEnd {
