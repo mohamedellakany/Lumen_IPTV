@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
-import { BackHandler, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, StyleSheet, View } from 'react-native';
 
 import { Artwork } from '@/components/Artwork';
 import { Button } from '@/components/Button';
@@ -8,6 +8,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { colors, radius, spacing } from '@/theme';
 
 import { formatTime } from './VodPlayer';
+import { Text } from '@/components/Text';
 
 interface Props {
   title: string;
@@ -36,7 +37,7 @@ export function ResumePrompt({ title, subtitle, artwork, position, duration, onR
   return (
     <View style={styles.root}>
       <Artwork uri={artwork} name={title} style={StyleSheet.absoluteFill} blurRadius={24} />
-      <LinearGradient colors={['rgba(5,7,15,0.7)', 'rgba(5,7,15,0.92)']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['rgba(5,12,15,0.7)', 'rgba(5,12,15,0.92)']} style={StyleSheet.absoluteFill} />
       <View style={styles.card}>
         <Text style={styles.title} numberOfLines={2}>
           {title}

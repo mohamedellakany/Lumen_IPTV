@@ -1,4 +1,7 @@
+import { Cairo_400Regular, Cairo_500Medium, Cairo_600SemiBold, Cairo_700Bold, Cairo_800ExtraBold } from '@expo-google-fonts/cairo';
+import { Exo2_400Regular, Exo2_500Medium, Exo2_600SemiBold, Exo2_700Bold, Exo2_800ExtraBold } from '@expo-google-fonts/exo-2';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useFonts } from 'expo-font';
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import { NavigationBar } from 'expo-navigation-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -9,7 +12,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import { useStoresHydrated } from '@/store/hydration';
-import { colors } from '@/theme';
+import { colors, fontFamily } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 SystemUI.setBackgroundColorAsync(colors.bg).catch(() => {});
@@ -25,8 +28,28 @@ const queryClient = new QueryClient({
   },
 });
 
+// Keys are the family names used in styles (see `fontFamily` in theme).
+const FONTS = {
+  Exo2_400Regular,
+  Exo2_500Medium,
+  Exo2_600SemiBold,
+  Exo2_700Bold,
+  Exo2_800ExtraBold,
+  Cairo_400Regular,
+  Cairo_500Medium,
+  Cairo_600SemiBold,
+  Cairo_700Bold,
+  Cairo_800ExtraBold,
+};
+
 const theme = {
   ...DarkTheme,
+  fonts: {
+    regular: { fontFamily: fontFamily(400), fontWeight: 'normal' as const },
+    medium: { fontFamily: fontFamily(500), fontWeight: 'normal' as const },
+    bold: { fontFamily: fontFamily(700), fontWeight: 'normal' as const },
+    heavy: { fontFamily: fontFamily(800), fontWeight: 'normal' as const },
+  },
   colors: { ...DarkTheme.colors, background: colors.bg, card: colors.bg, primary: colors.primary, text: colors.text, border: colors.border },
 };
 
@@ -40,12 +63,15 @@ const detailHeader = {
 
 export default function RootLayout() {
   const hydrated = useStoresHydrated();
+  // If a font fails to load, carry on with the system font rather than a blank screen.
+  const [fontsLoaded, fontError] = useFonts(FONTS);
+  const ready = hydrated && (fontsLoaded || !!fontError);
 
   useEffect(() => {
-    if (hydrated) SplashScreen.hideAsync().catch(() => {});
-  }, [hydrated]);
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
 
-  if (!hydrated) return null;
+  if (!ready) return null;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -56,6 +82,7 @@ export default function RootLayout() {
         <Stack
           screenOptions={{
             headerStyle: { backgroundColor: colors.bg },
+            headerTitleStyle: { fontFamily: fontFamily(700) },
             headerTintColor: colors.text,
             headerShadowVisible: false,
             headerBackButtonDisplayMode: 'minimal',

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Animated, Easing, Platform, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
+import { Animated, Easing, Platform, StyleSheet, View, type StyleProp, type TextStyle } from 'react-native';
+import { appFont, Text } from '@/components/Text';
 
 interface Props {
   children: string;
@@ -49,7 +50,7 @@ export function MarqueeText({ children, style, active = true }: Props) {
       {/* Full-width copy, laid out in a very wide row so it never wraps; measured, then animated. */}
       <View style={styles.track} pointerEvents="none">
         <Animated.Text
-          style={[style, styles.full, !scrolling && styles.hidden, { transform: [{ translateX: offset }] }]}
+          style={[style, appFont(style, children), styles.full, !scrolling && styles.hidden, { transform: [{ translateX: offset }] }]}
           onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
           numberOfLines={1}
         >

@@ -14,7 +14,7 @@ Xtream Codes account or M3U playlist and watch live TV, movies and series.
   plot, cast, director, rating, runtime and a YouTube trailer link.
 - **Series**: seasons and episodes, **"Continue S2 E5"**, watched markers, **autoplay next episode**.
 - **Resume playback**: movies and episodes pick up where you stopped.
-- **Home**: continue watching, recent channels, your list, recently added movies and series,
+- **Home**: featured banner (full story under "More"), Live TV / Movies / Series cards and a "Recently Added" row,
   plus a warning when your subscription is about to expire.
 - **My List**: favorite channels, movies and series, plus full watch history.
 - **Global search** across channels, movies and series.

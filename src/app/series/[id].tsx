@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { memo, useEffect, useMemo, useState } from 'react';
-import { FlatList, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Episode } from '@/api/types';
@@ -13,6 +13,7 @@ import { InfoSection } from '@/components/InfoSection';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Segmented } from '@/components/Segmented';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
+import { FitText } from '@/components/FitText';
 import { StoryModal } from '@/components/StoryModal';
 import { useCatalog, useSeriesInfo } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
@@ -20,6 +21,7 @@ import { resetFocus, useRememberedFocus } from '@/hooks/useRememberedFocus';
 import { inProgressFraction, isWatched, libraryActions, useIsFavorite, useLibrary, type Progress } from '@/store/library';
 import { colors, radius, spacing, tvFocus } from '@/theme';
 import { formatDuration, yearOf } from '@/utils/format';
+import { Text } from '@/components/Text';
 
 export default function SeriesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -99,14 +101,14 @@ export default function SeriesScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         <Artwork uri={info.data?.backdrop || poster} name={name} style={StyleSheet.absoluteFill} />
         <LinearGradient
-          colors={['rgba(11,13,18,0.97)', 'rgba(11,13,18,0.85)', 'rgba(11,13,18,0.35)']}
+          colors={['rgba(11,20,23,0.97)', 'rgba(11,20,23,0.85)', 'rgba(11,20,23,0.35)']}
           locations={[0, 0.55, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}
         />
         <LinearGradient
-          colors={['transparent', 'rgba(11,13,18,0.75)', colors.bg]}
+          colors={['transparent', 'rgba(11,20,23,0.75)', colors.bg]}
           locations={[0, 0.5, 1]}
           style={StyleSheet.absoluteFill}
         />
@@ -189,9 +191,10 @@ export default function SeriesScreen() {
                 onPress={() => setStoryOpen(true)}
                 style={({ focused }) => [styles.storyPress, tvFocus(focused)]}
               >
-                <Text style={styles.tvPlot} numberOfLines={short ? 1 : isTV ? 3 : 5}>
+                {/* The font shrinks so the whole story fits; only very long ones are cut ("Read more" has it all). */}
+                <FitText style={styles.tvPlot} maxLines={short ? 1 : isTV ? 3 : 5} maxSize={isTV ? 13 : 14} minSize={11}>
                   {plot}
-                </Text>
+                </FitText>
                 <Text style={styles.storyMore}>Read more ›</Text>
               </Pressable>
             )}
@@ -404,8 +407,6 @@ const styles = StyleSheet.create({
   iconAction: { backgroundColor: colors.surfaceAlt, padding: 12 },
   episodesHeader: { paddingHorizontal: spacing.lg, marginTop: spacing.xl, marginBottom: spacing.md },
   sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '700' },
-  episodes: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md },
-  episode: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   thumb: { width: '100%', height: '100%' },
   playBadge: {
     position: 'absolute',
@@ -425,8 +426,8 @@ const styles = StyleSheet.create({
   // ...and the episode block keeps its natural height at the bottom (never shrinks).
   touchEpisodes: { flexGrow: 0, flexShrink: 0, marginTop: 'auto' },
   backButton: { position: 'absolute', zIndex: 2, backgroundColor: 'rgba(0,0,0,0.45)' },
-  storyPress: { borderRadius: radius.sm, alignSelf: 'flex-start' },
-  storyMore: { color: '#8FB0FF', fontSize: 12, fontWeight: '800', marginTop: 2 },
+  storyPress: { borderRadius: radius.sm, alignSelf: 'stretch' },
+  storyMore: { color: colors.primary, fontSize: 12, fontWeight: '800', marginTop: 2 },
   tvPoster: { height: '100%', aspectRatio: 2 / 3, borderRadius: radius.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
   tvInfo: { flex: 1, maxWidth: 680, gap: 6, justifyContent: 'center' },
   tvTitle: { color: colors.text, fontSize: 26, fontWeight: '800' },
@@ -436,7 +437,7 @@ const styles = StyleSheet.create({
   tvMeta: { color: colors.textDim, fontSize: 13 },
   tvGenre: { color: colors.textMuted, fontSize: 13, flexShrink: 1 },
   tvActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginVertical: 4 },
-  tvPlot: { color: colors.textDim, fontSize: 13, lineHeight: 19 },
+  tvPlot: { color: colors.textDim },
   tvCredit: { color: colors.textDim, fontSize: 12 },
   tvCreditLabel: { color: colors.textMuted, fontWeight: '700' },
   tvEpisodes: { flex: 1, justifyContent: 'flex-end', paddingBottom: spacing.lg },

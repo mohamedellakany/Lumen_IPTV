@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, type ImageContentFit } from 'expo-image';
 import { memo, useState } from 'react';
-import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors } from '@/theme';
 import { initials } from '@/utils/format';
+import { Text } from '@/components/Text';
 
 interface Props {
   uri?: string;

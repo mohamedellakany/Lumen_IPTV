@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { colors, spacing } from '@/theme';
+import { Text } from '@/components/Text';
 
 export function InfoSection({ plot, rows }: { plot?: string; rows: [string, string | undefined][] }) {
   const [expanded, setExpanded] = useState(false);

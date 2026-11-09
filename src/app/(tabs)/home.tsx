@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, BackHandler, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Movie, Series } from '@/api/types';
@@ -12,14 +12,17 @@ import { ExitDialog } from '@/components/ExitDialog';
 import { PosterCard } from '@/components/PosterCard';
 import { Rail } from '@/components/Rail';
 import { ICON_ACCENT, SECTION_ICON_COMPONENTS, type SectionKey } from '@/components/SectionIcons';
+import { FitText } from '@/components/FitText';
+import { MarqueeText } from '@/components/MarqueeText';
 import { StoryModal } from '@/components/StoryModal';
 import { useAccountInfo, useCatalog, useMovieInfo, useSeriesInfo, recency, useRefreshCatalog, type RefreshResult } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
 import { rememberFocus, useRememberedFocus } from '@/hooks/useRememberedFocus';
 import { useActiveProfile } from '@/store/profiles';
 import { colors, radius, spacing, tvFocus } from '@/theme';
-import { daysUntil, initials } from '@/utils/format';
+import { daysUntil, formatAgo, initials } from '@/utils/format';
 import { openMedia } from '@/utils/navigation';
+import { Text } from '@/components/Text';
 
 // On TV, opening a rail poster and coming back returns the remote to the hero.
 const rememberHero = () => rememberFocus('hero');
@@ -96,11 +99,12 @@ export default function HomeScreen() {
           }
         : null;
 
-  const count = (n: number, noun: string) => (loadingCatalog && !n ? 'Loading…' : `${n.toLocaleString()} ${noun}`);
+  const count = (n: number, noun: string) => (loadingCatalog && !n ? 'Loading…' : `+${n.toLocaleString()} ${noun}`);
+  const updated = (at: number) => (at ? `Last update · ${formatAgo(at)}` : undefined);
   const categories: CategoryProps[] = [
-    { id: 'live', label: 'Live TV', count: count(live.items.length, 'Channels'), route: '/live' },
-    { id: 'movies', label: 'Movies', count: count(movies.items.length, 'Movies'), route: '/movies' },
-    { id: 'series', label: 'Series', count: count(series.items.length, 'Shows'), route: '/series' },
+    { id: 'live', label: 'Live TV', count: count(live.items.length, 'Channels'), updated: updated(live.updatedAt), route: '/live' },
+    { id: 'movies', label: 'Movies', count: count(movies.items.length, 'Movies'), updated: updated(movies.updatedAt), route: '/movies' },
+    { id: 'series', label: 'Series', count: count(series.items.length, 'Series'), updated: updated(series.updatedAt), route: '/series' },
   ];
 
   const pad = isWide ? spacing.xl : spacing.lg;
@@ -167,7 +171,7 @@ export default function HomeScreen() {
   const categoryRow = (
     <View style={[styles.categories, { paddingHorizontal: pad }]}>
       {categories.map((c) => (
-        <CategoryCard key={c.id} {...c} height={categoryHeight} stacked={stackedCategories} arrow={categoryWidth >= 200} />
+        <CategoryCard key={c.id} {...c} height={categoryHeight} stacked={stackedCategories} />
       ))}
     </View>
   );
@@ -305,28 +309,29 @@ function FeaturedCarousel({
         </>
       )}
       <LinearGradient
-        colors={['rgba(7,10,22,0.95)', 'rgba(7,10,22,0.7)', 'rgba(7,10,22,0)']}
+        colors={['rgba(6,14,17,0.95)', 'rgba(6,14,17,0.7)', 'rgba(6,14,17,0)']}
         locations={[0, 0.4, 0.75]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={StyleSheet.absoluteFill}
       />
       <LinearGradient
-        colors={['rgba(11,13,18,0.5)', 'rgba(11,13,18,0)', 'rgba(11,13,18,0)', colors.bg]}
+        colors={['rgba(11,20,23,0.5)', 'rgba(11,20,23,0)', 'rgba(11,20,23,0)', colors.bg]}
         locations={[0, 0.25, 0.6, 1]}
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={[styles.heroContent, dense && styles.heroContentTV, { paddingHorizontal: pad, maxWidth: isWide ? '55%' : '100%' }]}>
+      <View style={[styles.heroContent, dense && styles.heroContentTV, { paddingHorizontal: pad, maxWidth: isWide ? '64%' : '100%' }]}>
         {!tiny && (
           <View style={styles.featuredChip}>
             <Ionicons name="star" size={13} color={colors.warning} />
             <Text style={styles.featuredText}>Featured</Text>
           </View>
         )}
-        <Text style={[styles.heroTitle, isWide && styles.heroTitleWide, dense && styles.heroTitleTV]} numberOfLines={isWide ? 1 : 2}>
+        {/* Long titles slide sideways to show the whole name. */}
+        <MarqueeText key={item.id} style={[styles.heroTitle, isWide && styles.heroTitleWide, dense && styles.heroTitleTV]}>
           {item.name}
-        </Text>
+        </MarqueeText>
         {!!meta && !dense && <Text style={styles.heroMeta}>{meta}</Text>}
         {!!plot && !tiny && (
           // A short preview; "More" opens the whole story.
@@ -335,11 +340,12 @@ function FeaturedCarousel({
             accessibilityLabel={`Read the full story of ${item.name}`}
             {...focusHandlers}
             onPress={() => setStoryOpen(true)}
-            style={({ pressed, focused }) => [styles.plotRow, pressed && { opacity: 0.8 }, tvFocus(focused)]}
+            style={({ pressed, focused }) => [styles.plotBlock, pressed && { opacity: 0.8 }, tvFocus(focused)]}
           >
-            <Text style={[styles.heroPlot, isWide && styles.heroPlotWide, styles.plotText]} numberOfLines={dense ? 1 : 2}>
+            {/* The font shrinks so the whole story fits; only very long ones are cut ("More" has it all). */}
+            <FitText key={item.id} style={styles.heroPlot} maxLines={dense ? (isTV ? 2 : 3) : isWide ? 4 : 3} maxSize={isWide && !dense ? 17 : 14} minSize={11}>
               {plot}
-            </Text>
+            </FitText>
             <Text style={styles.plotMore}>More ›</Text>
           </Pressable>
         )}
@@ -357,7 +363,7 @@ function FeaturedCarousel({
             onPress={play}
             style={({ pressed, focused }) => [styles.playButton, dense && styles.heroButtonTV, pressed && { opacity: 0.85 }, tvFocus(focused)]}
           >
-            <Ionicons name="play" size={18} color="#fff" />
+            <Ionicons name="play" size={18} color={colors.onPrimary} />
             <Text style={styles.playText}>{item.kind === 'movie' ? 'Play Now' : 'Watch Now'}</Text>
           </Pressable>
           <Pressable
@@ -412,6 +418,8 @@ interface CategoryProps {
   id: SectionKey;
   label: string;
   count: string;
+  /** e.g. "Last update · 2 days ago" */
+  updated?: string;
   route: Href;
 }
 
@@ -419,7 +427,7 @@ interface CategoryProps {
  * Section card: frosted dark glass, name and count on the left, a big outline icon (white with one
  * yellow detail) on the right. Stacked on narrow cards (phones held upright): icon above the text.
  */
-function CategoryCard({ id, label, count, route, height, stacked }: CategoryProps & { height: number; stacked: boolean; arrow?: boolean }) {
+function CategoryCard({ id, label, count, updated, route, height, stacked }: CategoryProps & { height: number; stacked: boolean }) {
   const router = useRouter();
   const { ref, onFocus } = useRememberedFocus(id);
   const Icon = SECTION_ICON_COMPONENTS[id];
@@ -442,7 +450,7 @@ function CategoryCard({ id, label, count, route, height, stacked }: CategoryProp
       ]}
     >
       <LinearGradient
-        colors={['rgba(255,255,255,0.13)', 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.03)']}
+        colors={['rgba(140,190,200,0.26)', 'rgba(90,140,150,0.16)', 'rgba(70,120,130,0.12)']}
         locations={[0, 0.6, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -462,9 +470,19 @@ function CategoryCard({ id, label, count, route, height, stacked }: CategoryProp
             <Text style={[styles.categoryLabel, { fontSize: labelSize }]} numberOfLines={1}>
               {label}
             </Text>
-            <Text style={[styles.categoryCount, { fontSize: Math.max(12, Math.round(labelSize * 0.55)) }]} numberOfLines={1}>
-              {count}
-            </Text>
+            <View>
+              <Text style={[styles.categoryCount, { fontSize: Math.max(13, Math.round(labelSize * 0.66)) }]} numberOfLines={1}>
+                {count}
+              </Text>
+              {!!updated && !stacked && height >= 110 && (
+                <View style={styles.updatedRow}>
+                  <Ionicons name="sync-outline" size={12} color="rgba(255,255,255,0.65)" />
+                  <Text style={styles.updated} numberOfLines={1}>
+                    {updated}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
       ) : (
@@ -473,9 +491,19 @@ function CategoryCard({ id, label, count, route, height, stacked }: CategoryProp
             <Text style={[styles.categoryLabel, { fontSize: labelSize }]} numberOfLines={1}>
               {label}
             </Text>
-            <Text style={[styles.categoryCount, { fontSize: Math.max(12, Math.round(labelSize * 0.55)) }]} numberOfLines={1}>
-              {count}
-            </Text>
+            <View>
+              <Text style={[styles.categoryCount, { fontSize: Math.max(13, Math.round(labelSize * 0.66)) }]} numberOfLines={1}>
+                {count}
+              </Text>
+              {!!updated && !stacked && height >= 110 && (
+                <View style={styles.updatedRow}>
+                  <Ionicons name="sync-outline" size={12} color="rgba(255,255,255,0.65)" />
+                  <Text style={styles.updated} numberOfLines={1}>
+                    {updated}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
           <Icon size={iconSize} />
         </View>
@@ -495,11 +523,11 @@ const styles = StyleSheet.create({
     height: 40,
     marginLeft: spacing.xs,
     borderRadius: 20,
-    backgroundColor: '#6D3BFF',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  avatarText: { color: colors.onPrimary, fontSize: 17, fontWeight: '800' },
   heroEmpty: { alignItems: 'center', justifyContent: 'center' },
   heroEmptyText: { color: colors.textDim, fontSize: 18, fontWeight: '600' },
   heroPoster: {
@@ -530,11 +558,9 @@ const styles = StyleSheet.create({
   heroButtonTV: { height: 40, paddingHorizontal: spacing.lg },
   heroTitleWide: { fontSize: 44, letterSpacing: 3, textTransform: 'uppercase' },
   heroMeta: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
-  heroPlot: { color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 20 },
-  plotRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, alignSelf: 'flex-start', borderRadius: radius.sm },
-  plotText: { flexShrink: 1 },
-  plotMore: { color: '#8FB0FF', fontSize: 14, fontWeight: '800', lineHeight: 20 },
-  heroPlotWide: { fontSize: 17, lineHeight: 24 },
+  heroPlot: { color: 'rgba(255,255,255,0.85)' },
+  plotBlock: { alignSelf: 'stretch', borderRadius: radius.sm },
+  plotMore: { color: colors.primary, fontSize: 12, fontWeight: '800', marginTop: 1 },
   heroButtons: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
   playButton: {
     flexDirection: 'row',
@@ -543,16 +569,16 @@ const styles = StyleSheet.create({
     height: 48,
     paddingHorizontal: spacing.xl,
     borderRadius: radius.md,
-    backgroundColor: '#2D5BFF',
+    backgroundColor: colors.primary,
     borderWidth: 1,
-    borderColor: '#6F93FF',
-    shadowColor: '#3D6BFF',
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
     shadowOpacity: 0.7,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
     elevation: 8,
   },
-  playText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  playText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' },
   infoButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -567,7 +593,7 @@ const styles = StyleSheet.create({
   infoText: { color: colors.text, fontSize: 16, fontWeight: '600' },
   dots: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.md },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.35)' },
-  dotActive: { width: 22, backgroundColor: '#5B8CFF' },
+  dotActive: { width: 22, backgroundColor: colors.primary },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -584,17 +610,20 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: radius.lg + 4,
     overflow: 'hidden',
-    backgroundColor: 'rgba(20,24,34,0.72)',
+    backgroundColor: 'rgba(18,34,40,0.62)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   // TV: the card under the remote grows a little and picks up the yellow accent on its edge.
-  categoryFocused: { transform: [{ scale: 1.04 }], zIndex: 1, borderColor: ICON_ACCENT, borderWidth: 2 },
+  // TV: the card under the remote stays level and just picks up the yellow accent on its edge.
+  categoryFocused: { borderColor: ICON_ACCENT, borderWidth: 2 },
   categoryRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   categoryText: { flex: 1, alignSelf: 'stretch', justifyContent: 'space-between' },
   categoryStacked: { flex: 1, justifyContent: 'center', gap: spacing.sm },
   categoryLabel: { color: '#fff', fontWeight: '800', letterSpacing: 0.3 },
-  categoryCount: { color: 'rgba(255,255,255,0.75)', fontWeight: '600', marginTop: 2 },
+  categoryCount: { color: '#fff', fontWeight: '500', marginTop: 2 },
+  updatedRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  updated: { color: 'rgba(255,255,255,0.65)', fontSize: 11 },
   heroSpace: { flex: 1, minHeight: 120 },
   statusPill: {
     flexDirection: 'row',
@@ -605,7 +634,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: radius.pill,
     borderWidth: 1,
-    backgroundColor: 'rgba(11,13,18,0.8)',
+    backgroundColor: 'rgba(11,20,23,0.8)',
   },
   statusPillText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
 });

@@ -1,7 +1,8 @@
 import { useState, type ComponentRef } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TVFocusGuideView } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, TVFocusGuideView } from 'react-native';
 
 import { colors, radius, spacing, tvFocus } from '@/theme';
+import { Text } from '@/components/Text';
 
 interface Props<T extends string> {
   options: { value: T; label: string }[];
@@ -54,5 +55,5 @@ const styles = StyleSheet.create({
   },
   active: { backgroundColor: colors.primary, borderColor: colors.primary },
   label: { color: colors.textDim, fontSize: 14, fontWeight: '600' },
-  activeLabel: { color: '#fff' },
+  activeLabel: { color: colors.onPrimary },
 });

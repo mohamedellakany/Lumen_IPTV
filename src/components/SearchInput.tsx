@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, radius, spacing } from '@/theme';
+import { colors, fontFamily, radius, spacing } from '@/theme';
 
 interface Props {
   value: string;
@@ -47,5 +47,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     height: 42,
   },
-  input: { flex: 1, color: colors.text, fontSize: 15, height: '100%', outlineStyle: 'none' } as never,
+  input: { flex: 1, color: colors.text, fontSize: 15, fontFamily: fontFamily(400), height: '100%', outlineStyle: 'none' } as never,
 });

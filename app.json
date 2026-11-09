@@ -7,7 +7,7 @@
     "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#0B0D12",
+    "backgroundColor": "#0B1417",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lumenplayer.app",
@@ -23,7 +23,7 @@
     "android": {
       "package": "com.lumenplayer.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0B0D12",
+        "backgroundColor": "#0B1417",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -59,7 +59,7 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#0B0D12"
+          "backgroundColor": "#0B1417"
         }
       ],
       [

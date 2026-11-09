@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useRef, type ComponentRef, type Ref } from 'react';
-import { FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useLayout } from '@/hooks/useLayout';
 import { colors, radius, spacing, tvFocus } from '@/theme';
+import { Text } from '@/components/Text';
 
 export interface PickerCategory {
   id: string;
@@ -130,7 +131,7 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipLabel: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
-  chipLabelActive: { color: '#fff' },
+  chipLabelActive: { color: colors.onPrimary },
   sidebar: { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.border },
   row: {
     flexDirection: 'row',
@@ -141,7 +142,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.sm,
     borderRadius: radius.md,
   },
-  rowActive: { backgroundColor: colors.surfaceAlt },
+  rowActive: { backgroundColor: colors.primaryDim, borderLeftWidth: 3, borderLeftColor: colors.primary },
   rowLabel: { flex: 1, color: colors.textDim, fontSize: tv ? 13 : 14 },
   rowLabelActive: { color: colors.text, fontWeight: '700' },
   count: { color: colors.textMuted, fontSize: 12, fontVariant: ['tabular-nums'] },

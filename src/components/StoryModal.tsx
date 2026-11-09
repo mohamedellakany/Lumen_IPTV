@@ -1,8 +1,9 @@
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Artwork } from '@/components/Artwork';
 import { Button } from '@/components/Button';
 import { colors, radius, spacing } from '@/theme';
+import { Text } from '@/components/Text';
 
 interface Props {
   visible: boolean;
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
     padding: spacing.xl,
     borderRadius: radius.lg + 4,
-    backgroundColor: '#11152A',
+    backgroundColor: '#11222A',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },

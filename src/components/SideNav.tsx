@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandLogo } from '@/components/BrandLogo';
@@ -9,6 +9,7 @@ import { useAccountInfo } from '@/hooks/useCatalog';
 import { useActiveProfile } from '@/store/profiles';
 import { colors, radius, spacing, tvFocus } from '@/theme';
 import { daysUntil } from '@/utils/format';
+import { Text } from '@/components/Text';
 
 // Fire TV is ~540dp tall, so the rail is tighter there to fit without scrolling.
 const isTV = Platform.isTV;
@@ -136,7 +137,7 @@ function AccountBadge({ compact }: { compact?: boolean }) {
 
 const styles = StyleSheet.create({
   rail: {
-    backgroundColor: '#0A0E1C',
+    backgroundColor: '#081216',
     borderRightWidth: 1,
     borderRightColor: 'rgba(255,255,255,0.06)',
     paddingHorizontal: spacing.md,
@@ -162,13 +163,10 @@ const styles = StyleSheet.create({
   },
   itemHover: { backgroundColor: 'rgba(255,255,255,0.05)' },
   itemActive: {
-    backgroundColor: '#2D5BFF',
-    borderColor: '#6F93FF',
-    shadowColor: '#3D6BFF',
-    shadowOpacity: 0.6,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
+    backgroundColor: colors.primaryDim,
+    borderColor: 'transparent',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
   },
   itemLabel: { color: colors.textDim, fontSize: 15, fontWeight: '600', flexShrink: 1 },
   itemLabelActive: { color: '#fff', fontWeight: '700' },

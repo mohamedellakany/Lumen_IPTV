@@ -1,21 +1,48 @@
 import { Platform } from 'react-native';
 
 export const colors = {
-  bg: '#0B0D12',
-  surface: '#151821',
-  surfaceAlt: '#1E2230',
-  border: '#262B3A',
+  bg: '#0B1417',
+  surface: '#132126',
+  surfaceAlt: '#1B2C32',
+  border: '#26393F',
   text: '#F5F7FA',
-  textDim: '#A3ABBD',
-  textMuted: '#646C80',
-  primary: '#4F7CFF',
-  primaryDim: '#2A3F80',
+  textDim: '#A7B6BA',
+  textMuted: '#65777C',
+  primary: '#FFC21A',
+  /** Text and icons drawn on a `primary` (yellow) background. */
+  onPrimary: '#14181C',
+  primaryDim: 'rgba(255,194,26,0.16)',
   accent: '#FF4D6D',
   success: '#2BC48A',
   warning: '#F5A524',
   danger: '#F05252',
   overlay: 'rgba(0,0,0,0.6)',
 } as const;
+
+/**
+ * App fonts, loaded at startup (see app/_layout.tsx): Exo 2 for Latin text and Cairo for Arabic,
+ * which has no Exo 2 glyphs. Each weight is its own family; `Text` picks one from `fontWeight`.
+ */
+type FontWeight = '400' | '500' | '600' | '700' | '800';
+const WEIGHT_NAMES: Record<FontWeight, string> = { '400': 'Regular', '500': 'Medium', '600': 'SemiBold', '700': 'Bold', '800': 'ExtraBold' };
+
+function nearestWeight(weight: unknown): FontWeight {
+  const n = weight === 'bold' ? 700 : Number(weight) || 400;
+  if (n >= 800) return '800';
+  if (n >= 700) return '700';
+  if (n >= 600) return '600';
+  if (n >= 500) return '500';
+  return '400';
+}
+
+/** The loaded font family for a weight; `arabic` picks Cairo. */
+export function fontFamily(weight?: unknown, arabic = false): string {
+  const w = nearestWeight(weight);
+  return `${arabic ? 'Cairo' : 'Exo2'}_${w}${WEIGHT_NAMES[w]}`;
+}
+
+const ARABIC = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+export const hasArabic = (text: string) => ARABIC.test(text);
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 

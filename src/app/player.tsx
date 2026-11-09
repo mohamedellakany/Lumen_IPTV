@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Episode, LiveChannel } from '@/api/types';
@@ -23,6 +23,7 @@ import { useActiveProfile, useProfiles } from '@/store/profiles';
 import { useSettings } from '@/store/settings';
 import { colors, radius, spacing } from '@/theme';
 import { formatClock } from '@/utils/format';
+import { Text } from '@/components/Text';
 
 type Params = {
   kind: 'live' | 'movie' | 'episode';
@@ -592,7 +593,7 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     padding: spacing.lg,
     borderRadius: radius.lg,
-    backgroundColor: 'rgba(11,13,18,0.88)',
+    backgroundColor: 'rgba(11,20,23,0.88)',
   },
   infoNum: { color: colors.primary, fontSize: 28, fontWeight: '800', fontVariant: ['tabular-nums'] },
   infoName: { color: colors.text, fontSize: 20, fontWeight: '800' },

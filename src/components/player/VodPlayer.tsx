@@ -1,24 +1,14 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  BackHandler,
-  FlatList,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type LayoutChangeEvent,
-} from 'react-native';
+import { ActivityIndicator, BackHandler, FlatList, Platform, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import { useRemoteKeys, type RemoteKey } from '@/hooks/useRemoteKeys';
 import { colors, radius, spacing } from '@/theme';
 import { UpNextCard } from './UpNextCard';
 import type { MediaTrack, PlaybackState, TrackInfo, VideoSurfaceHandle } from './types';
 import { VideoSurface } from './VideoSurface';
+import { Text } from '@/components/Text';
 
 const SEEK_SECONDS = 15;
 const HIDE_AFTER_MS = 5000;
@@ -691,7 +681,7 @@ const styles = StyleSheet.create({
   transport: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xxl * 2, marginTop: spacing.xs },
   transportButton: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   transportBig: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(255,255,255,0.22)' },
-  transportFocused: { backgroundColor: colors.primary, transform: [{ scale: 1.12 }] },
+  transportFocused: { backgroundColor: colors.primaryDim, borderWidth: 2, borderColor: colors.primary, transform: [{ scale: 1.12 }] },
   transportCaption: { position: 'absolute', bottom: -6, color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '700' },
   tools: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.lg },
   tool: {
@@ -704,7 +694,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
   },
-  toolFocused: { borderColor: colors.primary, backgroundColor: colors.primary, transform: [{ scale: 1.08 }] },
+  toolFocused: { borderColor: colors.primary, backgroundColor: colors.primaryDim, transform: [{ scale: 1.08 }] },
   toolCaption: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
   seekHit: { height: 26, justifyContent: 'center' },
   seekBubble: {
@@ -717,7 +707,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     backgroundColor: colors.primary,
   },
-  seekBubbleText: { color: '#fff', fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  seekBubbleText: { color: colors.onPrimary, fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
   seekTrack: { height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)', overflow: 'hidden' },
   seekTrackFocused: { height: 8, borderRadius: 4 },
   seekFill: { height: '100%', backgroundColor: colors.primary },

@@ -39,6 +39,8 @@ export interface CatalogResult<T> {
   items: T[];
   byId: Map<string, T>;
   isLoading: boolean;
+  /** When the items were last downloaded (ms), 0 if never. */
+  updatedAt: number;
   error: Error | null;
   refetch: () => void;
 }
@@ -72,6 +74,7 @@ export function useCatalog<K extends CatalogKind>(kind: K, enabled = true): Cata
       items,
       byId: new Map(items.map((i) => [i.id, i])),
       isLoading: categoriesQuery.isLoading || itemsQuery.isLoading,
+      updatedAt: itemsQuery.dataUpdatedAt,
       error: (categoriesQuery.error ?? itemsQuery.error) as Error | null,
       refetch: () => {
         categoriesQuery.refetch();
@@ -79,7 +82,7 @@ export function useCatalog<K extends CatalogKind>(kind: K, enabled = true): Cata
       },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- query objects change identity every render
-  }, [categoriesQuery.data, itemsQuery.data, categoriesQuery.isLoading, itemsQuery.isLoading, categoriesQuery.error, itemsQuery.error, hideAdult]);
+  }, [categoriesQuery.data, itemsQuery.data, categoriesQuery.isLoading, itemsQuery.isLoading, categoriesQuery.error, itemsQuery.error, itemsQuery.dataUpdatedAt, hideAdult]);
 }
 
 export function useMovieInfo(id: string | undefined) {

@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { memo, type ComponentRef, type Ref } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import type { LiveChannel } from '@/api/types';
 import { colors, radius, spacing, tvFocus } from '@/theme';
 import { Artwork } from './Artwork';
+import { Text } from '@/components/Text';
 
 export const CHANNEL_ROW_HEIGHT = Platform.isTV ? 52 : 68;
 
@@ -64,7 +65,7 @@ const styles = StyleSheet.create({
   },
   active: { backgroundColor: colors.primaryDim },
   main: { flex: 1, height: '100%', flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingLeft: spacing.lg },
-  mainFocused: { backgroundColor: colors.primary },
+  mainFocused: { backgroundColor: colors.primaryDim, borderLeftWidth: 3, borderLeftColor: colors.primary },
   num: { color: colors.textMuted, width: 34, fontSize: 12, fontVariant: ['tabular-nums'] },
   logo: Platform.isTV
     ? { width: 54, height: 36, borderRadius: radius.sm, backgroundColor: colors.surface }

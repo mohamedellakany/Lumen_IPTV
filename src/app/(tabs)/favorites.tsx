@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Platform, Pressable, StyleSheet, Text, View, Alert } from 'react-native';
+import { FlatList, Platform, Pressable, StyleSheet, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { LiveChannel } from '@/api/types';
@@ -16,6 +16,7 @@ import { useLayout } from '@/hooks/useLayout';
 import { inProgressFraction, keyOf, libraryActions, useLibrary, type MediaRef } from '@/store/library';
 import { colors, radius, spacing } from '@/theme';
 import { openMedia } from '@/utils/navigation';
+import { Text } from '@/components/Text';
 
 type Tab = 'live' | 'movie' | 'series' | 'history';
 

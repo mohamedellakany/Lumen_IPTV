@@ -3,14 +3,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 
 import { useAccountInfo, useRefreshCatalog } from '@/hooks/useCatalog';
 import { libraryActions } from '@/store/library';
 import { useActiveProfile, useProfiles } from '@/store/profiles';
 import { useSettings } from '@/store/settings';
-import { colors, radius, spacing, tvFocus } from '@/theme';
+import { colors, fontFamily, radius, spacing, tvFocus } from '@/theme';
 import { formatDate } from '@/utils/format';
+import { Text } from '@/components/Text';
 
 function confirmAction(title: string, message: string, action: string, onConfirm: () => void) {
   if (Platform.OS === 'web') {
@@ -73,7 +74,7 @@ export default function SettingsScreen() {
                   onPress={() => settings.set({ liveFormat: f })}
                   style={({ focused }) => [styles.toggle, settings.liveFormat === f && styles.toggleActive, tvFocus(focused)]}
                 >
-                  <Text style={[styles.toggleText, settings.liveFormat === f && { color: '#fff' }]}>{f === 'm3u8' ? 'HLS' : 'MPEG-TS'}</Text>
+                  <Text style={[styles.toggleText, settings.liveFormat === f && { color: colors.onPrimary }]}>{f === 'm3u8' ? 'HLS' : 'MPEG-TS'}</Text>
                 </Pressable>
               ))}
             </View>
@@ -235,6 +236,7 @@ const styles = StyleSheet.create({
   toggleText: { color: colors.textDim, fontSize: 13, fontWeight: '700' },
   proxyBox: { padding: spacing.lg, gap: spacing.sm },
   input: {
+    fontFamily: fontFamily(400),
     height: 44,
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,

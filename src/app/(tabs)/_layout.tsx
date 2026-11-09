@@ -7,7 +7,7 @@ import { Glyph, SECTION_ICONS } from '@/components/Glyph';
 import { SideNav } from '@/components/SideNav';
 import { useLayout } from '@/hooks/useLayout';
 import { useActiveProfile } from '@/store/profiles';
-import { colors } from '@/theme';
+import { colors, fontFamily } from '@/theme';
 
 const tab = (name: string, title: string) => ({
   title,
@@ -31,7 +31,8 @@ export default function TabsLayout() {
         // Cross-fade between sections instead of an instant cut.
         animation: 'fade',
         tabBarPosition: isWide ? 'left' : 'bottom',
-        tabBarActiveTintColor: colors.text,
+        tabBarActiveTintColor: colors.primary,
+        tabBarLabelStyle: { fontFamily: fontFamily(600) },
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.border },
         // Keep screens clear of the notch on the right in landscape (the rail covers the left).

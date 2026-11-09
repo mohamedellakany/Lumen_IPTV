@@ -17,14 +17,14 @@ const weight = (size: number) => (size < 36 ? 4.2 : 2.8);
 const line = (color: string, width: number) =>
   ({ stroke: color, strokeWidth: width, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' }) as const;
 
-/** Live TV: a TV set with antennas and a signal pulse on screen. */
+/** Live TV: a TV set with antennas and a "live" dot on screen. */
 export function LiveTvIcon({ size, color = '#fff', accent = ICON_ACCENT }: Props) {
   const w = weight(size);
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64">
       <Path d="M23 7 L32 15 L41 7" {...line(color, w)} />
       <Rect x={6} y={15} width={52} height={38} rx={13} {...line(color, w)} />
-      <Path d="M16 34 H23 L27 27 L33 41 L37 34 H48" {...line(accent, w + 0.4)} />
+      <Circle cx={32} cy={34} r={7.5} {...line(accent, w + 0.4)} />
       <Path d="M24 58 H40" {...line(color, w)} />
     </Svg>
   );

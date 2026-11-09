@@ -2,18 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  type TextInputProps,
-} from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { normalizeHost, parseXtreamM3uUrl } from '@/api/parsers';
@@ -24,7 +13,8 @@ import { Button, IconButton } from '@/components/Button';
 import { Segmented } from '@/components/Segmented';
 import { useLibraryStore } from '@/store/library';
 import { useProfiles } from '@/store/profiles';
-import { colors, radius, spacing, tvFocus } from '@/theme';
+import { colors, fontFamily, radius, spacing, tvFocus } from '@/theme';
+import { Text } from '@/components/Text';
 
 type Mode = 'xtream' | 'm3u';
 
@@ -269,6 +259,7 @@ const styles = StyleSheet.create({
   field: { gap: 6 },
   label: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
   input: {
+    fontFamily: fontFamily(400),
     height: 48,
     backgroundColor: colors.surface,
     borderRadius: radius.md,

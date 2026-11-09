@@ -12,5 +12,5 @@ export function ProgressBar({ value, style }: { value: number; style?: StyleProp
 
 const styles = StyleSheet.create({
   track: { height: 3, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 2, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: colors.accent },
+  fill: { height: '100%', backgroundColor: colors.primary },
 });

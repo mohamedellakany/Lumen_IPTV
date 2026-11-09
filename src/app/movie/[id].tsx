@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Artwork } from '@/components/Artwork';
@@ -11,6 +11,7 @@ import { DetailHero } from '@/components/DetailHero';
 import { InfoSection } from '@/components/InfoSection';
 import { ProgressBar } from '@/components/ProgressBar';
 import { ErrorState, LoadingState } from '@/components/StateViews';
+import { FitText } from '@/components/FitText';
 import { StoryModal } from '@/components/StoryModal';
 import { useCatalog, useMovieInfo } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
@@ -18,6 +19,7 @@ import { resetFocus, useRememberedFocus } from '@/hooks/useRememberedFocus';
 import { inProgressFraction, libraryActions, useIsFavorite, useLibrary } from '@/store/library';
 import { colors, radius, spacing, tvFocus } from '@/theme';
 import { formatDuration, yearOf } from '@/utils/format';
+import { Text } from '@/components/Text';
 
 export default function MovieScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -73,13 +75,13 @@ export default function MovieScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         <Artwork uri={info.data?.backdrop || poster} name={name} style={StyleSheet.absoluteFill} />
         <LinearGradient
-          colors={['rgba(11,13,18,0.97)', 'rgba(11,13,18,0.85)', 'rgba(11,13,18,0.35)']}
+          colors={['rgba(11,20,23,0.97)', 'rgba(11,20,23,0.85)', 'rgba(11,20,23,0.35)']}
           locations={[0, 0.55, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}
         />
-        <LinearGradient colors={['transparent', 'rgba(11,13,18,0.8)']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['transparent', 'rgba(11,20,23,0.8)']} style={StyleSheet.absoluteFill} />
         {!isTV && (
           <IconButton
             icon="arrow-back"
@@ -162,9 +164,10 @@ export default function MovieScreen() {
                     onPress={() => setStoryOpen(true)}
                     style={({ focused }) => [styles.storyPress, tvFocus(focused)]}
                   >
-                    <Text style={styles.tvPlot} numberOfLines={short ? 3 : isTV ? 5 : 7}>
+                    {/* The font shrinks so the whole story fits; only very long ones are cut ("Read more" has it all). */}
+                    <FitText style={styles.tvPlot} maxLines={short ? 3 : isTV ? 5 : 7} maxSize={isTV ? 14 : 15} minSize={11}>
                       {info.data.plot}
-                    </Text>
+                    </FitText>
                     <Text style={styles.storyMore}>Read more ›</Text>
                   </Pressable>
                 )}
@@ -263,8 +266,8 @@ const styles = StyleSheet.create({
   tvBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xxl, paddingHorizontal: 48, paddingVertical: 36 },
   tvBodyShort: { gap: spacing.xl },
   backButton: { position: 'absolute', zIndex: 2, backgroundColor: 'rgba(0,0,0,0.45)' },
-  storyPress: { borderRadius: radius.sm, alignSelf: 'flex-start' },
-  storyMore: { color: '#8FB0FF', fontSize: 13, fontWeight: '800', marginTop: 2 },
+  storyPress: { borderRadius: radius.sm, alignSelf: 'stretch' },
+  storyMore: { color: colors.primary, fontSize: 13, fontWeight: '800', marginTop: 2 },
   tvPoster: {
     height: '100%',
     maxHeight: 420,
@@ -282,7 +285,7 @@ const styles = StyleSheet.create({
   tvGenre: { color: colors.textMuted, fontSize: 13 },
   tvActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
   tvProgress: { maxWidth: 300 },
-  tvPlot: { color: colors.textDim, fontSize: 14, lineHeight: 21, marginTop: spacing.sm },
+  tvPlot: { color: colors.textDim, marginTop: spacing.sm },
   tvCredit: { color: colors.textDim, fontSize: 12 },
   tvCreditLabel: { color: colors.textMuted, fontWeight: '700' },
 });

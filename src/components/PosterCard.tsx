@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useState, type ComponentRef, type Ref } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { colors, radius, spacing, tvFocus } from '@/theme';
 import { Artwork } from './Artwork';
 import { MarqueeText } from './MarqueeText';
 import { ProgressBar } from './ProgressBar';
+import { Text } from '@/components/Text';
 
 interface Props {
   title: string;

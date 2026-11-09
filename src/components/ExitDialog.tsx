@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { colors, radius, spacing } from '@/theme';
+import { Text } from '@/components/Text';
 
 interface Props {
   visible: boolean;
@@ -58,8 +59,8 @@ function DialogButton({
     >
       {({ focused }) => (
         <>
-          <Ionicons name={icon} size={20} color={primary || focused ? '#fff' : colors.textDim} />
-          <Text style={[styles.buttonLabel, { color: primary || focused ? '#fff' : colors.textDim }]}>{label}</Text>
+          <Ionicons name={icon} size={20} color={primary ? colors.onPrimary : focused ? '#fff' : colors.textDim} />
+          <Text style={[styles.buttonLabel, { color: primary ? colors.onPrimary : focused ? '#fff' : colors.textDim }]}>{label}</Text>
         </>
       )}
     </Pressable>

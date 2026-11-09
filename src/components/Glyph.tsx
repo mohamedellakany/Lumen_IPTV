@@ -1,12 +1,11 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { View, type StyleProp, type TextStyle } from 'react-native';
 
 import { SECTION_ICON_COMPONENTS, type SectionKey } from './SectionIcons';
 
-/** An icon from either bundled set: Ionicons, or Material Design Icons ("mci"). */
+/** An Ionicons icon, or one of the app's own section icons. */
 export type GlyphName =
   | { family: 'ion'; name: keyof typeof Ionicons.glyphMap }
-  | { family: 'mci'; name: keyof typeof MaterialCommunityIcons.glyphMap }
   /** The app's own outline icons for Live TV / Movies / Series. */
   | { family: 'section'; name: SectionKey; filled?: boolean };
 
@@ -20,11 +19,7 @@ export function Glyph({ icon, size, color, style }: { icon: GlyphName; size: num
       </View>
     );
   }
-  return icon.family === 'mci' ? (
-    <MaterialCommunityIcons name={icon.name} size={size} color={color} style={style} />
-  ) : (
-    <Ionicons name={icon.name} size={size} color={color} style={style} />
-  );
+  return <Ionicons name={icon.name} size={size} color={color} style={style} />;
 }
 
 const ion = (name: keyof typeof Ionicons.glyphMap): GlyphName => ({ family: 'ion', name });

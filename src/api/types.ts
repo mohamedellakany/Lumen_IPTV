@@ -43,8 +43,6 @@ export interface Series {
   updated?: number;
 }
 
-export type CatalogItem = LiveChannel | Movie | Series;
-
 export interface MovieInfo {
   id: string;
   name: string;

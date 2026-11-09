@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Artwork } from '@/components/Artwork';
 import { colors, radius, spacing, tvFocus } from '@/theme';
+import { Text } from '@/components/Text';
 
 const COUNTDOWN_SECONDS = 10;
 
@@ -50,7 +51,7 @@ export function UpNextCard({ title, image, autoplay, onPlay, onCancel }: Props) 
             onPress={onPlay}
             style={({ pressed, focused }) => [styles.play, pressed && { opacity: 0.85 }, tvFocus(focused)]}
           >
-            <Ionicons name="play" size={16} color="#fff" />
+            <Ionicons name="play" size={16} color={colors.onPrimary} />
             <Text style={styles.playText}>{autoplay ? `Play now (${Math.max(0, seconds)})` : 'Play now'}</Text>
           </Pressable>
           <Pressable
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.lg,
     overflow: 'hidden',
-    backgroundColor: 'rgba(12,15,26,0.94)',
+    backgroundColor: 'rgba(10,22,26,0.94)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
   },
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.primary,
   },
-  playText: { color: '#fff', fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  playText: { color: colors.onPrimary, fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
   cancel: {
     height: 38,
     justifyContent: 'center',

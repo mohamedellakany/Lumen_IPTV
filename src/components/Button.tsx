@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentRef, Ref } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, radius, spacing, tvFocus } from '@/theme';
+import { Text } from '@/components/Text';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -21,7 +22,7 @@ interface ButtonProps {
 }
 
 export function Button({ title, onPress, icon, variant = 'primary', loading, disabled, style, onFocus, ref, preferredFocus }: ButtonProps) {
-  const fg = variant === 'primary' || variant === 'danger' ? '#fff' : colors.text;
+  const fg = variant === 'primary' ? colors.onPrimary : variant === 'danger' ? '#fff' : colors.text;
   return (
     <Pressable
       ref={ref}

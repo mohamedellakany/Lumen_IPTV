@@ -37,7 +37,6 @@ export function useLayout() {
     columns,
     posterWidth,
     gap,
-    rowGap: isTV ? spacing.md : spacing.lg,
     railPoster: isTV ? 96 : targetPoster,
   };
 }

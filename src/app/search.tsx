@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useDeferredValue, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ChannelRow } from '@/components/ChannelRow';
 import { PosterCard } from '@/components/PosterCard';
@@ -12,6 +12,7 @@ import { useLayout } from '@/hooks/useLayout';
 import { libraryActions, useLibrary } from '@/store/library';
 import { colors, spacing } from '@/theme';
 import { openMedia } from '@/utils/navigation';
+import { Text } from '@/components/Text';
 
 const LIMIT = 40;
 

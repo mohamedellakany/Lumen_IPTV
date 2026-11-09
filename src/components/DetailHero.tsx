@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useLayout } from '@/hooks/useLayout';
 import { colors, radius, spacing } from '@/theme';
 import { Artwork } from './Artwork';
+import { Text } from '@/components/Text';
 
 interface Props {
   title: string;
@@ -25,7 +26,7 @@ export function DetailHero({ title, poster, backdrop, meta, rating, genre, child
     <View>
       <View style={{ height: isWide ? 420 : Math.max(260, width * 0.62) }}>
         <Artwork uri={backdrop || poster} name={title} style={StyleSheet.absoluteFill} />
-        <LinearGradient colors={['rgba(11,13,18,0.3)', 'rgba(11,13,18,0.6)', colors.bg]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['rgba(11,20,23,0.3)', 'rgba(11,20,23,0.6)', colors.bg]} style={StyleSheet.absoluteFill} />
       </View>
       <View style={[styles.body, { marginTop: isWide ? -260 : -110 }]}>
         <Artwork uri={poster} name={title} style={[styles.poster, { width: posterWidth, height: posterWidth * 1.5 }]} />
