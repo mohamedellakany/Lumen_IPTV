@@ -18,6 +18,7 @@ import { inProgressFraction, useLibrary } from '@/store/library';
 import { useSettings, type SortMode } from '@/store/settings';
 import { colors, spacing } from '@/theme';
 import { openMedia } from '@/utils/navigation';
+import { ThemeBackdrop } from '@/components/ThemeBackdrop';
 
 const ALL = '__all';
 const ROWS = 4;
@@ -224,6 +225,7 @@ export function VodBrowser({ kind }: { kind: 'movie' | 'series' }) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <ThemeBackdrop />
       <ScreenHeader
         title={label}
         subtitle={items.length ? `${items.length.toLocaleString()} titles` : undefined}

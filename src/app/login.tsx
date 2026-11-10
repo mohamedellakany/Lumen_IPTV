@@ -15,6 +15,7 @@ import { useLibraryStore } from '@/store/library';
 import { useProfiles } from '@/store/profiles';
 import { colors, fontFamily, radius, spacing, tvFocus } from '@/theme';
 import { Text } from '@/components/Text';
+import { ThemeBackdrop } from '@/components/ThemeBackdrop';
 
 type Mode = 'xtream' | 'm3u';
 
@@ -98,6 +99,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <ThemeBackdrop />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.card}>

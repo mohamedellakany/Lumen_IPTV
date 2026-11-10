@@ -14,6 +14,7 @@ import { useLayout } from '@/hooks/useLayout';
 import { markOpeningChild, useSectionEntry } from '@/hooks/useSectionEntry';
 import { libraryActions, useLibrary } from '@/store/library';
 import { colors, spacing } from '@/theme';
+import { ThemeBackdrop } from '@/components/ThemeBackdrop';
 
 const ALL = '__all';
 const FAVORITES = '__fav';
@@ -139,6 +140,7 @@ export default function LiveScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <ThemeBackdrop />
       <ScreenHeader
         title="Live TV"
         subtitle={items.length ? `${items.length.toLocaleString()} channels` : undefined}

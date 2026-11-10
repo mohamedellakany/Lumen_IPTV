@@ -1,19 +1,29 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, BackHandler, FlatList, Platform, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import {
+  ActivityIndicator,
+  BackHandler,
+  FlatList,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 
 import { useRemoteKeys, type RemoteKey } from '@/hooks/useRemoteKeys';
-import { colors, radius, spacing } from '@/theme';
+import { colors, radius, spacing, shade } from '@/theme';
 import { UpNextCard } from './UpNextCard';
-import type { MediaTrack, PlaybackState, TrackInfo, VideoSurfaceHandle } from './types';
+import { seekTarget, type MediaTrack, type PlaybackState, type TrackInfo, type VideoSurfaceHandle } from './types';
 import { VideoSurface } from './VideoSurface';
 import { Text } from '@/components/Text';
 
 const SEEK_SECONDS = 15;
 const HIDE_AFTER_MS = 5000;
 // The "Next episode" card appears this many seconds before an episode ends.
-const UP_NEXT_LEAD_SECONDS = 120;
+const UP_NEXT_LEAD_SECONDS = 30;
 /** Label for finished episodes in the Episodes list; shown in red. */
 export const WATCHED = 'Watched';
 // Remote scrubbing: presses closer together than this count as one continuous "hold".
@@ -124,12 +134,13 @@ export function VodPlayer({
     setActivity((a) => a + 1);
   }, []);
 
-  // Auto-hide while playing; stay visible while paused or while a panel is open.
+  // Auto-hide while playing; stay visible while paused, while a panel is open or while dragging the bar.
+  const [dragging, setDragging] = useState(false);
   useEffect(() => {
-    if (!visible || !state.playing || panel) return;
+    if (!visible || !state.playing || panel || dragging) return;
     const timer = setTimeout(() => setVisible(false), HIDE_AFTER_MS);
     return () => clearTimeout(timer);
-  }, [visible, state.playing, panel, activity]);
+  }, [visible, state.playing, panel, activity, dragging]);
 
   useEffect(() => {
     if (!osd) return;
@@ -332,6 +343,7 @@ export function VodPlayer({
               preview={scrub !== null}
               focused={seekFocused}
               onFocusChange={setSeekFocused}
+              onDragChange={setDragging}
               onSeek={(seconds) => {
                 surface.current?.seekTo(seconds);
                 setState((s) => ({ ...s, position: seconds }));
@@ -514,6 +526,7 @@ function SeekBar({
   preview,
   focused,
   onFocusChange,
+  onDragChange,
   onSeek,
 }: {
   position: number;
@@ -522,35 +535,89 @@ function SeekBar({
   preview?: boolean;
   focused?: boolean;
   onFocusChange?: (focused: boolean) => void;
+  /** Touch/mouse: a finger is dragging the bar (keep the controls on screen). */
+  onDragChange?: (dragging: boolean) => void;
   onSeek?: (seconds: number) => void;
 }) {
   const [width, setWidth] = useState(0);
-  const fraction = duration > 0 ? Math.min(1, position / duration) : 0;
-  return (
-    <Pressable
-      accessibilityLabel="Progress. Use left and right to move through the video; hold to go faster."
-      disabled={!onSeek || !duration}
-      focusable={isTV && !!onSeek}
-      onFocus={() => onFocusChange?.(true)}
-      onBlur={() => onFocusChange?.(false)}
-      onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
-      onPress={(e) => {
-        // On TV, OK on the focused bar does nothing special; on touch/mouse, jump to the tapped point.
-        if (!isTV && width) onSeek?.((e.nativeEvent.locationX / width) * duration);
-      }}
-      style={styles.seekHit}
-    >
-      <View style={[styles.seekTrack, focused && styles.seekTrackFocused]}>
+  // Touch/mouse drag: where the finger is (0..1) while it's down; the video jumps there on release.
+  const [drag, setDrag] = useState<number | null>(null);
+  // Where the finger went down (bar and screen x), and the last position, kept between events.
+  const gesture = useRef({ startX: 0, startPageX: 0, current: 0 });
+  const at = (x: number) => (width ? Math.min(1, Math.max(0, x / width)) : 0);
+  const canDrag = !!onSeek && duration > 0;
+  const finish = (seek: boolean) => {
+    if (seek) {
+      const target = seekTarget(gesture.current.current * duration, duration);
+      if (target !== null) onSeek?.(target);
+    }
+    setDrag(null);
+    onDragChange?.(false);
+  };
+
+  const fraction = drag ?? (duration > 0 ? Math.min(1, position / duration) : 0);
+  const bubble = preview || drag !== null;
+  const bubbleTime = drag !== null ? drag * duration : position;
+  const body = (
+    <>
+      <View pointerEvents="none" style={[styles.seekTrack, (focused || drag !== null) && styles.seekTrackFocused]}>
         <View style={[styles.seekFill, { width: `${fraction * 100}%` }]} />
       </View>
-      <View style={[styles.seekThumb, (focused || preview) && styles.seekThumbFocused, { left: `${fraction * 100}%` }]} />
-      {preview && (
+      <View
+        pointerEvents="none"
+        style={[styles.seekThumb, (focused || preview || drag !== null) && styles.seekThumbFocused, { left: `${fraction * 100}%` }]}
+      />
+      {bubble && (
         // Centred on the thumb, but kept inside the bar at the very start and end.
         <View pointerEvents="none" style={[styles.seekBubble, { left: Math.min(Math.max(fraction * width, 42), Math.max(42, width - 42)) }]}>
-          <Text style={styles.seekBubbleText}>{formatTime(position)}</Text>
+          <Text style={styles.seekBubbleText}>{formatTime(bubbleTime)}</Text>
         </View>
       )}
-    </Pressable>
+    </>
+  );
+
+  // TV: a focusable bar driven by the remote (left/right scrub, handled by the player).
+  if (isTV) {
+    return (
+      <Pressable
+        accessibilityLabel="Progress. Use left and right to move through the video; hold to go faster."
+        disabled={!onSeek || !duration}
+        focusable={!!onSeek}
+        onFocus={() => onFocusChange?.(true)}
+        onBlur={() => onFocusChange?.(false)}
+        onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
+        style={styles.seekHit}
+      >
+        {body}
+      </Pressable>
+    );
+  }
+
+  // Touch and mouse: tap anywhere on the bar, or press and drag the circle, then let go to jump there.
+  return (
+    <View
+      accessibilityRole="adjustable"
+      accessibilityLabel="Progress. Drag to move through the video."
+      onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
+      style={[styles.seekHit, styles.seekHitTouch]}
+      onStartShouldSetResponder={() => canDrag}
+      onMoveShouldSetResponder={() => canDrag}
+      onResponderTerminationRequest={() => false}
+      onResponderGrant={(e) => {
+        gesture.current = { startX: e.nativeEvent.locationX, startPageX: e.nativeEvent.pageX, current: at(e.nativeEvent.locationX) };
+        setDrag(gesture.current.current);
+        onDragChange?.(true);
+      }}
+      onResponderMove={(e) => {
+        const g = gesture.current;
+        g.current = at(g.startX + (e.nativeEvent.pageX - g.startPageX));
+        setDrag(g.current);
+      }}
+      onResponderRelease={() => finish(true)}
+      onResponderTerminate={() => finish(false)}
+    >
+      {body}
+    </View>
   );
 }
 
@@ -699,6 +766,8 @@ const styles = StyleSheet.create({
   toolFocused: { borderColor: colors.primary, backgroundColor: colors.primaryDim, transform: [{ scale: 1.08 }] },
   toolCaption: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
   seekHit: { height: 26, justifyContent: 'center' },
+  // A finger-sized target around the thin bar.
+  seekHitTouch: { height: 40, marginVertical: -7 },
   seekBubble: {
     position: 'absolute',
     bottom: 26,
@@ -727,7 +796,7 @@ const styles = StyleSheet.create({
   osdText: { color: '#fff', fontSize: 20, fontWeight: '800', fontVariant: ['tabular-nums'] },
   osdBar: { position: 'absolute', left: spacing.xxl, right: spacing.xxl, bottom: spacing.xl },
   panelBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'flex-end' },
-  panel: { width: 340, maxWidth: '85%', height: '100%', backgroundColor: 'rgba(21,24,33,0.97)', padding: spacing.lg },
+  panel: { width: 340, maxWidth: '85%', height: '100%', backgroundColor: shade(0.97), padding: spacing.lg },
   panelTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: spacing.md },
   panelHeading: { color: colors.textMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: spacing.xs },
   panelEmpty: { color: colors.textMuted, fontSize: 14, paddingVertical: spacing.sm, paddingLeft: 30 },

@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useImperativeHandle, useRef } from 'react';
 
 import { proxify } from '@/api/http';
-import type { PlaybackState, VideoSurfaceProps } from './types';
+import { seekTarget, type PlaybackState, type VideoSurfaceProps } from './types';
 
 const isHls = (url: string) => /\.m3u8(\?|$)/i.test(url);
 const isMpegTs = (url: string) => /\.ts(\?|$)/i.test(url);
@@ -175,11 +175,13 @@ export function VideoSurface({
         },
         seekBy: (seconds) => {
           const v = video();
-          if (v) v.currentTime = Math.max(0, Math.min(v.currentTime + seconds, Number.isFinite(v.duration) ? v.duration : Infinity));
+          const target = v && seekTarget(v.currentTime + seconds, v.duration);
+          if (v && target !== null) v.currentTime = target;
         },
         seekTo: (seconds) => {
           const v = video();
-          if (v) v.currentTime = Math.max(0, seconds);
+          const target = v && seekTarget(seconds, v.duration);
+          if (v && target !== null) v.currentTime = target;
         },
         // Track switching isn't wired up in the browser build; the mobile/TV apps support it.
         getTracks: () => ({ audio: [], subtitles: [] }),

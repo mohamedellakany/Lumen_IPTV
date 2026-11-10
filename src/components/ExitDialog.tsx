@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
-import { colors, radius, spacing } from '@/theme';
+import { colors, radius, spacing, shade } from '@/theme';
 import { Text } from '@/components/Text';
 
 interface Props {
@@ -68,7 +68,7 @@ function DialogButton({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(5,6,10,0.82)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: shade(0.82), alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   card: {
     width: '100%',
     maxWidth: 460,

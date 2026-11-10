@@ -98,7 +98,15 @@ export default function RootLayout() {
           <Stack.Screen name="settings" options={{ title: 'Settings' }} />
           <Stack.Screen
             name="player"
-            options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }}
+            options={{
+              headerShown: false,
+              animation: 'fade',
+              contentStyle: { backgroundColor: '#000' },
+              // iOS 26+ swipes back from anywhere by default, which steals sideways drags on the time bar.
+              // The player has its own Back button.
+              gestureEnabled: false,
+              fullScreenGestureEnabled: false,
+            }}
           />
         </Stack>
       </ThemeProvider>

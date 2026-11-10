@@ -58,5 +58,15 @@ export interface VideoSurfaceProps {
   ref?: Ref<VideoSurfaceHandle>;
 }
 
+/**
+ * A seek target the players can accept: a real number of seconds, at least 0 and (when known) before
+ * the end. Returns null for anything else (NaN/Infinity), which callers then ignore.
+ */
+export function seekTarget(seconds: number, duration?: number): number | null {
+  if (!Number.isFinite(seconds)) return null;
+  const end = duration && Number.isFinite(duration) && duration > 0 ? duration : Infinity;
+  return Math.max(0, Math.min(seconds, end));
+}
+
 export const trackLabel = (t: { label?: string; language?: string }, index: number) =>
   t.label || (t.language ? t.language.toUpperCase() : `Track ${index + 1}`);

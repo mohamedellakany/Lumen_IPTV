@@ -13,6 +13,7 @@ import { libraryActions, useLibrary } from '@/store/library';
 import { colors, spacing } from '@/theme';
 import { openMedia } from '@/utils/navigation';
 import { Text } from '@/components/Text';
+import { ThemeBackdrop } from '@/components/ThemeBackdrop';
 
 const LIMIT = 40;
 
@@ -47,6 +48,7 @@ export default function SearchScreen() {
 
   return (
     <View style={styles.screen}>
+      <ThemeBackdrop />
       <SearchInput value={query} onChangeText={setQuery} placeholder="Channels, movies, series…" autoFocus style={styles.input} />
       {deferred.length < 2 ? (
         loading ? <LoadingState message="Loading your library…" /> : <EmptyState icon="search" title="Search everything" message="Find live channels, movies and series across your playlist." />

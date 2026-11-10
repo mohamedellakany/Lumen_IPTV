@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Artwork } from '@/components/Artwork';
-import { colors, radius, spacing, tvFocus } from '@/theme';
+import { colors, radius, spacing, tvFocus, shade } from '@/theme';
 import { Text } from '@/components/Text';
 
 const COUNTDOWN_SECONDS = 10;
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.lg,
     overflow: 'hidden',
-    backgroundColor: 'rgba(10,22,26,0.94)',
+    backgroundColor: shade(0.94),
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
   },

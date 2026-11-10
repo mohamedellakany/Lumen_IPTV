@@ -1,7 +1,8 @@
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { colors } from '@/theme';
 
-/** Accent used by the outline section icons. */
-export const ICON_ACCENT = '#FFD21F';
+/** Accent used by the outline section icons (the theme's highlight colour). */
+export const ICON_ACCENT = colors.primary;
 
 interface Props {
   size: number;

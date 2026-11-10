@@ -17,6 +17,7 @@ import { inProgressFraction, keyOf, libraryActions, useLibrary, type MediaRef } 
 import { colors, radius, spacing } from '@/theme';
 import { openMedia } from '@/utils/navigation';
 import { Text } from '@/components/Text';
+import { ThemeBackdrop } from '@/components/ThemeBackdrop';
 
 type Tab = 'live' | 'movie' | 'series' | 'history';
 
@@ -133,6 +134,7 @@ export default function FavoritesScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <ThemeBackdrop />
       <ScreenHeader
         title="My List"
         right={tab === 'history' && library.recents.length > 0 ? <IconButton icon="trash-outline" label="Clear history" onPress={clearHistory} /> : undefined}

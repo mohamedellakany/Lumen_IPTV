@@ -5,7 +5,7 @@ import { StyleSheet } from 'react-native';
 import { PLAYER_USER_AGENT } from '@/api/streamCheck';
 
 import { getVlcPlayerView, isVlcAvailable, type VlcPlayerViewRef, type VlcTracks } from '../../../modules/vlc-player/src';
-import type { TrackInfo, VideoSurfaceProps } from './types';
+import { seekTarget, type TrackInfo, type VideoSurfaceProps } from './types';
 
 // Looked up once; the native view only exists in iOS builds (VideoSurface checks before using this).
 const VlcPlayerView = isVlcAvailable ? getVlcPlayerView() : null;
@@ -45,8 +45,14 @@ export function VlcSurface({
       play: () => void viewRef.current?.play(),
       pause: () => void viewRef.current?.pause(),
       togglePlay: () => void (state.current.playing ? viewRef.current?.pause() : viewRef.current?.play()),
-      seekBy: (seconds) => void viewRef.current?.seekTo(state.current.position + seconds),
-      seekTo: (seconds) => void viewRef.current?.seekTo(seconds),
+      seekBy: (seconds) => {
+        const target = seekTarget(state.current.position + seconds);
+        if (target !== null) void viewRef.current?.seekTo(target);
+      },
+      seekTo: (seconds) => {
+        const target = seekTarget(seconds);
+        if (target !== null) void viewRef.current?.seekTo(target);
+      },
       getTracks: () => tracks.current,
       setAudioTrack: (id) => void viewRef.current?.setAudioTrack(Number(id)),
       setSubtitleTrack: (id) => void viewRef.current?.setSubtitleTrack(id === undefined ? -1 : Number(id)),

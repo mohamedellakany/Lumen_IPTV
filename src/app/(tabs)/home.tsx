@@ -19,10 +19,11 @@ import { useAccountInfo, useCatalog, useMovieInfo, useSeriesInfo, recency, useRe
 import { useLayout } from '@/hooks/useLayout';
 import { rememberFocus, useRememberedFocus } from '@/hooks/useRememberedFocus';
 import { useActiveProfile } from '@/store/profiles';
-import { colors, radius, spacing, tvFocus } from '@/theme';
+import { colors, radius, spacing, tvFocus, shade } from '@/theme';
 import { daysUntil, formatAgo, initials } from '@/utils/format';
 import { openMedia } from '@/utils/navigation';
 import { Text } from '@/components/Text';
+import { ThemeBackdrop } from '@/components/ThemeBackdrop';
 
 // On TV, opening a rail poster and coming back returns the remote to the hero.
 const rememberHero = () => rememberFocus('hero');
@@ -203,6 +204,7 @@ export default function HomeScreen() {
     const bottomInset = isWide ? insets.bottom : 0; // with bottom tabs, the tab bar already handles it
     return (
       <View style={styles.safe} onLayout={(e) => setScreenHeight(e.nativeEvent.layout.height)}>
+        <ThemeBackdrop />
         <View style={styles.heroSpace} onLayout={(e) => setHeroSpace(e.nativeEvent.layout.height)}>
           {heroSpace > 0 && heroFor(heroSpace)}
           <View style={[styles.actionsWrap, { paddingHorizontal: pad, top: insets.top + spacing.md }]} pointerEvents="box-none">
@@ -222,6 +224,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={isWide ? [] : ['top']}>
+      <ThemeBackdrop />
       <ScrollView
         contentContainerStyle={{ paddingBottom: spacing.xxl }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} tintColor={colors.text} />}
@@ -309,14 +312,14 @@ function FeaturedCarousel({
         </>
       )}
       <LinearGradient
-        colors={['rgba(6,14,17,0.95)', 'rgba(6,14,17,0.7)', 'rgba(6,14,17,0)']}
+        colors={[shade(0.95), shade(0.7), shade(0)]}
         locations={[0, 0.4, 0.75]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={StyleSheet.absoluteFill}
       />
       <LinearGradient
-        colors={['rgba(11,20,23,0.5)', 'rgba(11,20,23,0)', 'rgba(11,20,23,0)', colors.bg]}
+        colors={[shade(0.5), shade(0), shade(0), colors.bg]}
         locations={[0, 0.25, 0.6, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -450,7 +453,7 @@ function CategoryCard({ id, label, count, updated, route, height, stacked }: Cat
       ]}
     >
       <LinearGradient
-        colors={['rgba(140,190,200,0.26)', 'rgba(90,140,150,0.16)', 'rgba(70,120,130,0.12)']}
+        colors={colors.cardGlass}
         locations={[0, 0.6, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -610,9 +613,9 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: radius.lg + 4,
     overflow: 'hidden',
-    backgroundColor: 'rgba(18,34,40,0.62)',
+    backgroundColor: colors.cardFill,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: colors.cardBorder,
   },
   // TV: the card under the remote grows a little and picks up the yellow accent on its edge.
   // TV: the card under the remote stays level and just picks up the yellow accent on its edge.
@@ -634,7 +637,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: radius.pill,
     borderWidth: 1,
-    backgroundColor: 'rgba(11,20,23,0.8)',
+    backgroundColor: shade(0.8),
   },
   statusPillText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
 });

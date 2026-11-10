@@ -132,3 +132,13 @@ test('tsStreamTypes reads the codec table of an MPEG-TS segment', () => {
   assert.deepEqual(tsStreamTypes(tsWith([0x1b, 0x0f])), [0x1b, 0x0f]); // H.264 + AAC
   assert.deepEqual(tsStreamTypes(new Uint8Array(500)), []);
 });
+
+test('seekTarget rejects invalid times and keeps valid ones inside the video', async () => {
+  const { seekTarget } = await import('../src/components/player/types.ts');
+  assert.equal(seekTarget(Number.NaN, 600), null);
+  assert.equal(seekTarget(Number.POSITIVE_INFINITY, 600), null);
+  assert.equal(seekTarget(-5, 600), 0);
+  assert.equal(seekTarget(900, 600), 600);
+  assert.equal(seekTarget(120, Number.POSITIVE_INFINITY), 120);
+  assert.equal(seekTarget(120), 120);
+});

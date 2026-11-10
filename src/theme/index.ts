@@ -1,23 +1,115 @@
 import { Platform } from 'react-native';
 
-export const colors = {
-  bg: '#0B1417',
-  surface: '#132126',
-  surfaceAlt: '#1B2C32',
-  border: '#26393F',
-  text: '#F5F7FA',
-  textDim: '#A7B6BA',
-  textMuted: '#65777C',
-  primary: '#FFC21A',
-  /** Text and icons drawn on a `primary` (yellow) background. */
-  onPrimary: '#14181C',
-  primaryDim: 'rgba(255,194,26,0.16)',
-  accent: '#FF4D6D',
-  success: '#2BC48A',
-  warning: '#F5A524',
-  danger: '#F05252',
-  overlay: 'rgba(0,0,0,0.6)',
-} as const;
+import { readThemeId } from './themeStore';
+
+export type ThemeId = 'lumen' | 'barcaHome' | 'barcaNight';
+
+interface Palette {
+  bg: string;
+  /** The background colour as "r,g,b", for fades: `rgba(${bgRgb},0.8)`. */
+  bgRgb: string;
+  surface: string;
+  surfaceAlt: string;
+  border: string;
+  sidebar: string;
+  sheet: string;
+  text: string;
+  textDim: string;
+  textMuted: string;
+  primary: string;
+  /** Text and icons drawn on a `primary` background. */
+  onPrimary: string;
+  primaryDim: string;
+  /** Home section cards: glass gradient (3 stops), fill and edge. */
+  cardGlass: [string, string, string];
+  cardFill: string;
+  cardBorder: string;
+  accent: string;
+  success: string;
+  warning: string;
+  danger: string;
+  overlay: string;
+}
+
+const base = { accent: '#FF4D6D', success: '#2BC48A', warning: '#F5A524', danger: '#F05252', overlay: 'rgba(0,0,0,0.6)', text: '#F5F7FA' };
+
+export const THEMES: Record<ThemeId, { name: string; pattern: 'none' | 'stripes'; colors: Palette }> = {
+  lumen: {
+    name: 'Lumen',
+    pattern: 'none',
+    colors: {
+      ...base,
+      bg: '#0B1417',
+      bgRgb: '11,20,23',
+      surface: '#132126',
+      surfaceAlt: '#1B2C32',
+      border: '#26393F',
+      sidebar: '#081216',
+      sheet: '#11222A',
+      textDim: '#A7B6BA',
+      textMuted: '#65777C',
+      primary: '#FFC21A',
+      onPrimary: '#14181C',
+      primaryDim: 'rgba(255,194,26,0.16)',
+      cardGlass: ['rgba(140,190,200,0.26)', 'rgba(90,140,150,0.16)', 'rgba(70,120,130,0.12)'],
+      cardFill: 'rgba(18,34,40,0.62)',
+      cardBorder: 'rgba(255,255,255,0.14)',
+    },
+  },
+  // Club colours: blue #004D98, garnet #A50044, gold #EDBB00. Stripes are drawn behind the screens.
+  barcaHome: {
+    name: 'Barcelona Home',
+    pattern: 'stripes',
+    colors: {
+      ...base,
+      bg: '#08112A',
+      bgRgb: '8,17,42',
+      surface: '#101E44',
+      surfaceAlt: '#182A57',
+      border: '#2A3B6B',
+      sidebar: 'rgba(4,10,28,0.85)',
+      sheet: '#0F1B3E',
+      textDim: '#B3BEDB',
+      textMuted: '#6E7BA0',
+      primary: '#EDBB00',
+      onPrimary: '#0A1630',
+      primaryDim: 'rgba(165,0,68,0.45)',
+      cardGlass: ['rgba(0,77,152,0.55)', 'rgba(60,30,110,0.40)', 'rgba(165,0,68,0.42)'],
+      cardFill: 'rgba(8,17,42,0.55)',
+      cardBorder: 'rgba(237,187,0,0.30)',
+    },
+  },
+  barcaNight: {
+    name: 'Barcelona Night',
+    pattern: 'none',
+    colors: {
+      ...base,
+      bg: '#070C1E',
+      bgRgb: '7,12,30',
+      surface: '#0E1730',
+      surfaceAlt: '#16213F',
+      border: '#25315A',
+      sidebar: '#050A1A',
+      sheet: '#0D1630',
+      textDim: '#AEB8D6',
+      textMuted: '#69749A',
+      primary: '#EDBB00',
+      onPrimary: '#0A1630',
+      primaryDim: 'rgba(0,77,152,0.40)',
+      cardGlass: ['rgba(0,77,152,0.30)', 'rgba(20,26,60,0.30)', 'rgba(165,0,68,0.28)'],
+      cardFill: 'rgba(10,17,40,0.85)',
+      cardBorder: 'rgba(165,0,68,0.55)',
+    },
+  },
+};
+
+const stored = readThemeId();
+/** The theme chosen in Settings (applied at startup; changing it restarts the app). */
+export const THEME_ID: ThemeId = stored && stored in THEMES ? (stored as ThemeId) : 'lumen';
+export const THEME = THEMES[THEME_ID];
+export const colors = THEME.colors;
+/** The theme background colour with transparency, for fades over pictures. */
+export const shade = (alpha: number) => `rgba(${colors.bgRgb},${alpha})`;
 
 /**
  * App fonts, loaded at startup (see app/_layout.tsx): Exo 2 for Latin text and Cairo for Arabic,

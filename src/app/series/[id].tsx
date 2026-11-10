@@ -19,7 +19,7 @@ import { useCatalog, useSeriesInfo } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
 import { resetFocus, useRememberedFocus } from '@/hooks/useRememberedFocus';
 import { inProgressFraction, isWatched, libraryActions, useIsFavorite, useLibrary, type Progress } from '@/store/library';
-import { colors, radius, spacing, tvFocus } from '@/theme';
+import { colors, radius, spacing, tvFocus, shade } from '@/theme';
 import { formatDuration, yearOf } from '@/utils/format';
 import { Text } from '@/components/Text';
 
@@ -101,14 +101,14 @@ export default function SeriesScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         <Artwork uri={info.data?.backdrop || poster} name={name} style={StyleSheet.absoluteFill} />
         <LinearGradient
-          colors={['rgba(11,20,23,0.97)', 'rgba(11,20,23,0.85)', 'rgba(11,20,23,0.35)']}
+          colors={[shade(0.97), shade(0.85), shade(0.35)]}
           locations={[0, 0.55, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}
         />
         <LinearGradient
-          colors={['transparent', 'rgba(11,20,23,0.75)', colors.bg]}
+          colors={['transparent', shade(0.75), colors.bg]}
           locations={[0, 0.5, 1]}
           style={StyleSheet.absoluteFill}
         />

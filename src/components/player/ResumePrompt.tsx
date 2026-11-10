@@ -5,7 +5,7 @@ import { BackHandler, StyleSheet, View } from 'react-native';
 import { Artwork } from '@/components/Artwork';
 import { Button } from '@/components/Button';
 import { ProgressBar } from '@/components/ProgressBar';
-import { colors, radius, spacing } from '@/theme';
+import { colors, radius, spacing, shade } from '@/theme';
 
 import { formatTime } from './VodPlayer';
 import { Text } from '@/components/Text';
@@ -37,7 +37,7 @@ export function ResumePrompt({ title, subtitle, artwork, position, duration, onR
   return (
     <View style={styles.root}>
       <Artwork uri={artwork} name={title} style={StyleSheet.absoluteFill} blurRadius={24} />
-      <LinearGradient colors={['rgba(5,12,15,0.7)', 'rgba(5,12,15,0.92)']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[shade(0.7), shade(0.92)]} style={StyleSheet.absoluteFill} />
       <View style={styles.card}>
         <Text style={styles.title} numberOfLines={2}>
           {title}

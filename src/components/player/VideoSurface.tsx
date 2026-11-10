@@ -7,7 +7,7 @@ import { Platform, StyleSheet } from 'react-native';
 import { isHevcInTs, PLAYER_USER_AGENT } from '@/api/streamCheck';
 
 import { isVlcAvailable } from '../../../modules/vlc-player/src';
-import { trackLabel, type PlaybackState, type TrackInfo, type VideoSurfaceProps } from './types';
+import { seekTarget, trackLabel, type PlaybackState, type TrackInfo, type VideoSurfaceProps } from './types';
 import { VlcSurface } from './VlcSurface';
 
 const trackId = (t: AudioTrack | SubtitleTrack, i: number) => t.id ?? `${t.language}|${t.label}|${i}`;
@@ -159,8 +159,13 @@ function AppleSurface({
       play: () => player.play(),
       pause: () => player.pause(),
       togglePlay: () => (player.playing ? player.pause() : player.play()),
-      seekBy: (seconds) => player.seekBy(seconds),
-      seekTo: (seconds) => player.seekBy(seconds - player.currentTime),
+      seekBy: (seconds) => {
+        if (Number.isFinite(seconds)) player.seekBy(seconds);
+      },
+      seekTo: (seconds) => {
+        const target = seekTarget(seconds, player.duration);
+        if (target !== null) player.seekBy(target - player.currentTime);
+      },
       getTracks: () => readTracks(player),
       setAudioTrack: (id) => {
         const list = player.availableAudioTracks ?? [];

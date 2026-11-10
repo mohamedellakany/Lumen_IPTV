@@ -21,7 +21,7 @@ import { useRemoteKeys } from '@/hooks/useRemoteKeys';
 import { isWatched, keyOf, libraryActions, useIsFavorite, useLibrary, useLibraryStore, type MediaRef } from '@/store/library';
 import { useActiveProfile, useProfiles } from '@/store/profiles';
 import { useSettings } from '@/store/settings';
-import { colors, radius, spacing } from '@/theme';
+import { colors, radius, spacing, shade } from '@/theme';
 import { formatClock } from '@/utils/format';
 import { Text } from '@/components/Text';
 
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     padding: spacing.lg,
     borderRadius: radius.lg,
-    backgroundColor: 'rgba(11,20,23,0.88)',
+    backgroundColor: shade(0.88),
   },
   infoNum: { color: colors.primary, fontSize: 28, fontWeight: '800', fontVariant: ['tabular-nums'] },
   infoName: { color: colors.text, fontSize: 20, fontWeight: '800' },

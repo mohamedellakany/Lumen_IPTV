@@ -137,7 +137,7 @@ function AccountBadge({ compact }: { compact?: boolean }) {
 
 const styles = StyleSheet.create({
   rail: {
-    backgroundColor: '#081216',
+    backgroundColor: colors.sidebar,
     borderRightWidth: 1,
     borderRightColor: 'rgba(255,255,255,0.06)',
     paddingHorizontal: spacing.md,
