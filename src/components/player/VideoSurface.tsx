@@ -75,6 +75,7 @@ function AppleSurface({
   controls = 'native',
   contentFit = 'contain',
   startAt,
+  scaled,
   onProgress,
   onStateChange,
   onTracksChange,
@@ -190,6 +191,7 @@ function AppleSurface({
       style={StyleSheet.absoluteFill}
       nativeControls={!custom}
       contentFit={contentFit}
+      surfaceType={scaled ? 'textureView' : 'surfaceView'}
       fullscreenOptions={{ enable: !custom }}
       allowsPictureInPicture
       focusable={!custom}

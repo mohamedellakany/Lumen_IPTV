@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View, type TextInputProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { normalizeHost, parseXtreamM3uUrl } from '@/api/parsers';
@@ -13,9 +13,9 @@ import { Button, IconButton } from '@/components/Button';
 import { Segmented } from '@/components/Segmented';
 import { useLibraryStore } from '@/store/library';
 import { useProfiles } from '@/store/profiles';
-import { colors, fontFamily, radius, spacing, tvFocus } from '@/theme';
+import { colors, fontFamily, radius, shade, spacing, tvFocus } from '@/theme';
 import { Text } from '@/components/Text';
-import { ThemeBackdrop } from '@/components/ThemeBackdrop';
+import { PosterWall } from '@/components/PosterWall';
 
 type Mode = 'xtream' | 'm3u';
 
@@ -36,6 +36,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { profiles, activeId, add, remove, setActive } = useProfiles();
+  const { width, height } = useWindowDimensions();
 
   const [mode, setMode] = useState<Mode>('xtream');
   const [name, setName] = useState('');
@@ -97,125 +98,141 @@ export default function LoginScreen() {
       queryClient.removeQueries({ queryKey: [profile.id] });
     });
 
+  // Wide screens (TV, tablets, phones held sideways) put two fields per row so the card fits one screen.
+  const wide = width >= 640;
+  const short = height < 520;
+
+  const xtreamFields = (
+    <>
+      <View style={wide ? styles.pair : undefined}>
+        <Field label="Playlist name (optional)" value={name} onChangeText={setName} placeholder="My IPTV" compact={short} />
+        <Field
+          label="Server URL"
+          value={host}
+          onChangeText={setHost}
+          placeholder="http://example.com:8080"
+          keyboardType="url"
+          autoCapitalize="none"
+          autoCorrect={false}
+          compact={short}
+        />
+      </View>
+      <View style={wide ? styles.pair : undefined}>
+        <Field
+          label="Username"
+          value={username}
+          onChangeText={setUsername}
+          autoCapitalize="none"
+          autoCorrect={false}
+          textContentType="username"
+          compact={short}
+        />
+        <View style={styles.flex}>
+          <Field
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="password"
+            onSubmitEditing={canSubmit ? submit : undefined}
+            compact={short}
+          />
+          <IconButton
+            icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+            label={showPassword ? 'Hide password' : 'Show password'}
+            color={colors.textMuted}
+            size={20}
+            onPress={() => setShowPassword((v) => !v)}
+            style={[styles.eye, short && styles.eyeCompact]}
+          />
+        </View>
+      </View>
+    </>
+  );
+
+  const m3uFields = (
+    <View style={wide ? styles.pair : undefined}>
+      <Field label="Playlist name (optional)" value={name} onChangeText={setName} placeholder="My IPTV" compact={short} />
+      <Field
+        label="Playlist URL"
+        value={m3uUrl}
+        onChangeText={setM3uUrl}
+        placeholder="http://example.com/get.php?username=…&type=m3u_plus"
+        keyboardType="url"
+        autoCapitalize="none"
+        autoCorrect={false}
+        onSubmitEditing={canSubmit ? submit : undefined}
+        compact={short}
+        grow={2}
+      />
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safe}>
-      <ThemeBackdrop />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <PosterWall />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={styles.card}>
-            {router.canGoBack() && (
-              <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} style={styles.back} />
-            )}
-            <View style={styles.brand}>
-              <BrandLogo size={96} style={styles.logo} />
-              <Text style={styles.title}>Lumen Player</Text>
-              <Text style={styles.subtitle}>Add your IPTV playlist to start watching</Text>
+          <View style={[styles.card, wide && styles.cardWide, short && styles.cardShort]}>
+            <View style={styles.header}>
+              {router.canGoBack() && <IconButton icon="arrow-back" label="Back" onPress={() => router.back()} style={styles.back} />}
+              <BrandLogo size={short ? 36 : 48} />
+              <View style={styles.flex}>
+                <Text style={[styles.title, short && styles.titleShort]}>Lumen</Text>
+                {!short && <Text style={styles.subtitle}>Add your IPTV playlist to start watching</Text>}
+              </View>
             </View>
 
             {profiles.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Your playlists</Text>
+              // Saved playlists: tap to open, the small bin removes it.
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} style={styles.chipsRow}>
                 {profiles.map((p) => (
-                  <View key={p.id} style={[styles.profile, p.id === activeId && styles.profileActive]}>
-                    <Pressable onPress={() => enter(p.id)} style={({ pressed, focused }) => [styles.profileMain, pressed && { opacity: 0.7 }, tvFocus(focused)]}>
-                      <Ionicons name={p.type === 'xtream' ? 'server-outline' : 'list-outline'} size={22} color={colors.primary} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.profileName} numberOfLines={1}>
-                          {p.name}
-                        </Text>
-                        <Text style={styles.profileMeta} numberOfLines={1}>
-                          {p.type === 'xtream' ? `${p.username} · ${p.host}` : p.url}
-                        </Text>
-                      </View>
+                  <View key={p.id} style={[styles.chip, p.id === activeId && styles.chipActive]}>
+                    <Pressable
+                      accessibilityLabel={`Open ${p.name}`}
+                      onPress={() => enter(p.id)}
+                      style={({ pressed, focused }) => [styles.chipMain, pressed && { opacity: 0.7 }, tvFocus(focused)]}
+                    >
+                      <Ionicons name="play" size={14} color={colors.primary} />
+                      <Text style={styles.chipText} numberOfLines={1}>
+                        {p.name}
+                      </Text>
                     </Pressable>
-                    <IconButton icon="trash-outline" size={18} color={colors.textMuted} label={`Delete ${p.name}`} onPress={() => removeProfile(p)} />
+                    <IconButton icon="trash-outline" size={15} color={colors.textMuted} label={`Delete ${p.name}`} onPress={() => removeProfile(p)} />
                   </View>
                 ))}
+              </ScrollView>
+            )}
+
+            <View style={styles.segment}>
+              <Segmented
+                value={mode}
+                onChange={(m) => {
+                  setMode(m);
+                  setError(null);
+                }}
+                options={[
+                  { value: 'xtream', label: 'Xtream Codes' },
+                  { value: 'm3u', label: 'M3U URL' },
+                ]}
+              />
+            </View>
+
+            {mode === 'xtream' ? xtreamFields : m3uFields}
+
+            {error && (
+              <View style={styles.error}>
+                <Ionicons name="alert-circle" size={18} color={colors.danger} />
+                <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{profiles.length ? 'Add another playlist' : 'Add playlist'}</Text>
-              <View style={styles.segment}>
-                <Segmented
-                  value={mode}
-                  onChange={(m) => {
-                    setMode(m);
-                    setError(null);
-                  }}
-                  options={[
-                    { value: 'xtream', label: 'Xtream Codes' },
-                    { value: 'm3u', label: 'M3U URL' },
-                  ]}
-                />
-              </View>
-
-              <Field label="Playlist name (optional)" value={name} onChangeText={setName} placeholder="My IPTV" />
-              {mode === 'xtream' ? (
-                <>
-                  <Field
-                    label="Server URL"
-                    value={host}
-                    onChangeText={setHost}
-                    placeholder="http://example.com:8080"
-                    keyboardType="url"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  <Field
-                    label="Username"
-                    value={username}
-                    onChangeText={setUsername}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    textContentType="username"
-                  />
-                  <View>
-                    <Field
-                      label="Password"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      textContentType="password"
-                      onSubmitEditing={canSubmit ? submit : undefined}
-                    />
-                    <IconButton
-                      icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      label={showPassword ? 'Hide password' : 'Show password'}
-                      color={colors.textMuted}
-                      size={20}
-                      onPress={() => setShowPassword((v) => !v)}
-                      style={styles.eye}
-                    />
-                  </View>
-                </>
-              ) : (
-                <Field
-                  label="Playlist URL"
-                  value={m3uUrl}
-                  onChangeText={setM3uUrl}
-                  placeholder="http://example.com/get.php?username=…&type=m3u_plus"
-                  keyboardType="url"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  onSubmitEditing={canSubmit ? submit : undefined}
-                />
-              )}
-
-              {error && (
-                <View style={styles.error}>
-                  <Ionicons name="alert-circle" size={18} color={colors.danger} />
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              )}
-
-              <Button title="Connect" icon="log-in-outline" onPress={submit} loading={loading} disabled={!canSubmit} />
-              <Text style={styles.disclaimer}>
-                Lumen Player does not provide any content. Use it with playlists and subscriptions you are authorized to access.
-              </Text>
-            </View>
+            <Button title="Connect" icon="log-in-outline" onPress={submit} loading={loading} disabled={!canSubmit} style={short && styles.connectShort} />
+            <Text style={styles.disclaimer} numberOfLines={2}>
+              Lumen Player does not provide any content. Use it with playlists and subscriptions you are authorized to access.
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -223,43 +240,56 @@ export default function LoginScreen() {
   );
 }
 
-function Field({ label, ...props }: TextInputProps & { label: string }) {
+function Field({ label, compact, grow = 1, ...props }: TextInputProps & { label: string; compact?: boolean; grow?: number }) {
   return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor={colors.textMuted} style={styles.input} {...props} />
+    <View style={[styles.field, { flex: grow }]}>
+      <Text style={[styles.label, compact && styles.labelCompact]}>{label}</Text>
+      <TextInput placeholderTextColor={colors.textMuted} style={[styles.input, compact && styles.inputCompact]} {...props} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
-  card: { width: '100%', maxWidth: 480, alignSelf: 'center' },
-  back: { alignSelf: 'flex-start', marginBottom: spacing.sm },
-  brand: { alignItems: 'center', marginBottom: spacing.xl },
-  logo: { marginBottom: spacing.md },
-  title: { color: colors.text, fontSize: 28, fontWeight: '800' },
-  subtitle: { color: colors.textDim, fontSize: 15, marginTop: spacing.xs, textAlign: 'center' },
-  section: { marginBottom: spacing.xl, gap: spacing.md },
-  sectionTitle: { color: colors.textDim, fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
-  segment: { marginHorizontal: -spacing.lg },
-  profile: {
+  card: {
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    gap: spacing.md,
+    padding: spacing.xl,
+    borderRadius: 24,
+    backgroundColor: shade(0.78),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  cardWide: { maxWidth: 760 },
+  cardShort: { padding: spacing.md, gap: spacing.sm, borderRadius: 18 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  back: { marginRight: -spacing.xs },
+  title: { color: colors.text, fontSize: 26, fontWeight: '800' },
+  titleShort: { fontSize: 20 },
+  subtitle: { color: colors.textDim, fontSize: 14, marginTop: 1 },
+  chipsRow: { flexGrow: 0 },
+  chips: { gap: spacing.sm },
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
+    paddingLeft: spacing.md,
+    borderRadius: radius.pill,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  profileActive: { borderColor: colors.primary },
-  profileMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  profileName: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  profileMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  field: { gap: 6 },
+  chipActive: { borderColor: colors.primary },
+  chipMain: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, borderRadius: radius.pill },
+  chipText: { color: colors.text, fontSize: 14, fontWeight: '700', maxWidth: 180 },
+  segment: { marginHorizontal: -spacing.lg },
+  pair: { flexDirection: 'row', gap: spacing.md },
+  field: { gap: 5 },
   label: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
+  labelCompact: { fontSize: 11 },
   input: {
     fontFamily: fontFamily(400),
     height: 48,
@@ -272,15 +302,18 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
   },
+  inputCompact: { height: 40, fontSize: 14 },
   eye: { position: 'absolute', right: 4, bottom: 6 },
+  eyeCompact: { bottom: 2 },
+  connectShort: { minHeight: 42 },
   error: {
     flexDirection: 'row',
     gap: spacing.sm,
-    padding: spacing.md,
+    padding: spacing.sm,
     backgroundColor: 'rgba(240,82,82,0.12)',
     borderRadius: radius.md,
     alignItems: 'flex-start',
   },
-  errorText: { color: colors.danger, flex: 1, fontSize: 14, lineHeight: 20 },
-  disclaimer: { color: colors.textMuted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  errorText: { color: colors.danger, flex: 1, fontSize: 13, lineHeight: 18 },
+  disclaimer: { color: colors.textMuted, fontSize: 11, textAlign: 'center', lineHeight: 16 },
 });

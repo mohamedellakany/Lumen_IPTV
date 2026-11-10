@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 import { readThemeId } from './themeStore';
 
-export type ThemeId = 'lumen' | 'barcaHome' | 'barcaNight';
+export type ThemeId = 'lumen' | 'barcaHome' | 'barcaNight' | 'senyera';
 
 interface Palette {
   bg: string;
@@ -33,7 +33,7 @@ interface Palette {
 
 const base = { accent: '#FF4D6D', success: '#2BC48A', warning: '#F5A524', danger: '#F05252', overlay: 'rgba(0,0,0,0.6)', text: '#F5F7FA' };
 
-export const THEMES: Record<ThemeId, { name: string; pattern: 'none' | 'stripes'; colors: Palette }> = {
+export const THEMES: Record<ThemeId, { name: string; pattern: 'none' | 'stripes' | 'senyera'; colors: Palette }> = {
   lumen: {
     name: 'Lumen',
     pattern: 'none',
@@ -99,6 +99,29 @@ export const THEMES: Record<ThemeId, { name: string; pattern: 'none' | 'stripes'
       cardGlass: ['rgba(0,77,152,0.30)', 'rgba(20,26,60,0.30)', 'rgba(165,0,68,0.28)'],
       cardFill: 'rgba(10,17,40,0.85)',
       cardBorder: 'rgba(165,0,68,0.55)',
+    },
+  },
+  // The Catalan flag: horizontal gold/red bands as waving cloth, over a deep garnet base.
+  senyera: {
+    name: 'Senyera',
+    pattern: 'senyera',
+    colors: {
+      ...base,
+      bg: '#1E0306',
+      bgRgb: '30,3,6',
+      surface: '#2E0A0E',
+      surfaceAlt: '#3D1015',
+      border: '#5A1C22',
+      sidebar: 'rgba(30,0,8,0.88)',
+      sheet: '#2A080C',
+      textDim: '#E3C7C3',
+      textMuted: '#A07F7B',
+      primary: '#FCDD09',
+      onPrimary: '#3A0010',
+      primaryDim: 'rgba(218,18,26,0.55)',
+      cardGlass: ['rgba(252,221,9,0.28)', 'rgba(218,18,26,0.30)', 'rgba(218,18,26,0.38)'],
+      cardFill: 'rgba(30,3,6,0.5)',
+      cardBorder: 'rgba(252,221,9,0.5)',
     },
   },
 };

@@ -96,6 +96,7 @@ export default function RootLayout() {
           <Stack.Screen name="series/[id]" options={detailHeader} />
           <Stack.Screen name="search" options={{ title: 'Search' }} />
           <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+          <Stack.Screen name="appearance" options={{ title: 'Appearance' }} />
           <Stack.Screen
             name="player"
             options={{
@@ -106,6 +107,11 @@ export default function RootLayout() {
               // The player has its own Back button.
               gestureEnabled: false,
               fullScreenGestureEnabled: false,
+              // Full-screen viewing: no clock/Wi-Fi/battery bar, and the iPhone home bar fades away.
+              // (The screen navigator owns the status bar on iOS, so it has to be set here.)
+              statusBarHidden: true,
+              autoHideHomeIndicator: true,
+              navigationBarHidden: true,
             }}
           />
         </Stack>

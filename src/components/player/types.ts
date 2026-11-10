@@ -47,6 +47,11 @@ export interface VideoSurfaceProps {
   contentFit?: 'contain' | 'cover' | 'fill';
   /** Seconds to resume from (VOD only). */
   startAt?: number;
+  /**
+   * The picture is being scaled by the parent (Zoom). Android then renders into a TextureView, because
+   * its default SurfaceView ignores view transforms.
+   */
+  scaled?: boolean;
   /** Called every few seconds with the playback position, for saving progress. */
   onProgress?: (position: number, duration: number) => void;
   /** Called about once per second, and on play/pause/buffering changes. */

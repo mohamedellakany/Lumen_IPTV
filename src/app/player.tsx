@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -325,7 +324,6 @@ export default function PlayerScreen() {
   if (kind !== 'live') {
     return (
       <View style={styles.safe}>
-        <StatusBar hidden style="light" />
         {playable && askResume && resume && itemKey ? (
           <ResumePrompt
             title={playable.title}
@@ -396,8 +394,7 @@ export default function PlayerScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={isLandscape ? ['left', 'right'] : ['top', 'bottom', 'left', 'right']}>
-      <StatusBar hidden={isLandscape || fullscreen} style="light" />
+    <SafeAreaView style={styles.safe} edges={isLandscape ? ['top', 'left', 'right'] : ['top', 'bottom', 'left', 'right']}>
       {!fullscreen && (
         <View style={styles.topBar}>
           <IconButton icon="chevron-back" label="Back" onPress={goBack} />

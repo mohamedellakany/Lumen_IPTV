@@ -1,8 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
-import { reloadAppAsync } from 'expo';
 import Constants from 'expo-constants';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
@@ -11,67 +9,9 @@ import { useAccountInfo, useRefreshCatalog } from '@/hooks/useCatalog';
 import { libraryActions } from '@/store/library';
 import { useActiveProfile, useProfiles } from '@/store/profiles';
 import { useSettings } from '@/store/settings';
-import { colors, fontFamily, radius, spacing, THEME_ID, THEMES, tvFocus, type ThemeId } from '@/theme';
-import { writeThemeId } from '@/theme/themeStore';
+import { colors, fontFamily, radius, spacing, THEME_ID, THEMES, tvFocus } from '@/theme';
 import { formatDate } from '@/utils/format';
 import { Text } from '@/components/Text';
-
-// Theme previews in Settings: background swatch and the theme's highlight colour.
-const THEME_SWATCH: Record<ThemeId, { fill: string[]; stripes?: string[] }> = {
-  lumen: { fill: ['#2B4A52', '#0B1417'] },
-  barcaHome: { fill: ['#004D98', '#A50044'], stripes: ['#004D98', '#A50044'] },
-  barcaNight: { fill: ['#16213F', '#070C1E'] },
-};
-
-/** Saves the theme and restarts the app, since colours are fixed when it starts. */
-function applyTheme(id: ThemeId) {
-  if (id === THEME_ID) return;
-  writeThemeId(id);
-  if (Platform.OS === 'web') window.location.reload();
-  else reloadAppAsync().catch(() => {});
-}
-
-function ThemeCard({ id }: { id: ThemeId }) {
-  const theme = THEMES[id];
-  const swatch = THEME_SWATCH[id];
-  const active = id === THEME_ID;
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={`${theme.name} theme`}
-      onPress={() => applyTheme(id)}
-      style={({ pressed, focused }) => [styles.themeCard, active && styles.themeCardActive, pressed && { opacity: 0.85 }, tvFocus(focused)]}
-    >
-      <View style={styles.themeSwatch}>
-        <LinearGradient colors={swatch.fill as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-        {swatch.stripes && (
-          <View style={styles.themeStripes}>
-            {Array.from({ length: 12 }, (_, i) => (
-              <View key={i} style={{ flex: 1, backgroundColor: swatch.stripes![i % 2] }} />
-            ))}
-          </View>
-        )}
-        <View style={[styles.themeAccent, { backgroundColor: theme.colors.primary }]} />
-        <View style={styles.themeTiles}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={styles.themeTile} />
-          ))}
-        </View>
-      </View>
-      <View style={styles.themeFooter}>
-        <Text style={styles.themeName} numberOfLines={1}>
-          {theme.name}
-        </Text>
-        {active && (
-          <View style={styles.themeBadge}>
-            <Text style={styles.themeBadgeText}>ACTIVE</Text>
-          </View>
-        )}
-      </View>
-    </Pressable>
-  );
-}
 
 function confirmAction(title: string, message: string, action: string, onConfirm: () => void) {
   if (Platform.OS === 'web') {
@@ -99,12 +39,7 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Section title="Appearance">
-        <View style={styles.themes}>
-          {(Object.keys(THEMES) as ThemeId[]).map((id) => (
-            <ThemeCard key={id} id={id} />
-          ))}
-        </View>
-        <Text style={[styles.hint, styles.themesHint]}>Changing the theme restarts the app. Your playlists and favorites stay the same.</Text>
+        <Row icon="color-palette-outline" label="Theme" value={THEMES[THEME_ID].name} onPress={() => router.push('/appearance')} />
       </Section>
 
       <Section title="Account">
@@ -276,19 +211,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl, width: '100%', maxWidth: 720, alignSelf: 'center' },
   section: { marginBottom: spacing.xl },
-  themes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, padding: spacing.md },
-  themeCard: { width: 190, padding: spacing.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceAlt },
-  themeCardActive: { borderWidth: 2, borderColor: colors.primary },
-  themeSwatch: { height: 96, borderRadius: radius.md, overflow: 'hidden' },
-  themeStripes: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row' },
-  themeAccent: { position: 'absolute', top: 10, left: 10, width: 44, height: 12, borderRadius: 6 },
-  themeTiles: { position: 'absolute', left: 10, right: 10, bottom: 10, flexDirection: 'row', gap: 6 },
-  themeTile: { flex: 1, height: 24, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
-  themeFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm, gap: spacing.xs },
-  themeName: { color: colors.text, fontSize: 14, fontWeight: '700', flexShrink: 1 },
-  themeBadge: { backgroundColor: colors.primary, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  themeBadgeText: { color: colors.onPrimary, fontSize: 10, fontWeight: '800' },
-  themesHint: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
   sectionTitle: {
     color: colors.textMuted,
     fontSize: 12,

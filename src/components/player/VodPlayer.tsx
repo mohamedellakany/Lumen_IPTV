@@ -35,12 +35,16 @@ const scrubStep = (streak: number) => (streak < 5 ? 10 : streak < 15 ? 30 : stre
 const isTV = Platform.isTV;
 const isPhone = !isTV && Platform.OS !== 'web';
 
-type Fit = 'contain' | 'cover' | 'fill';
-const FITS: { value: Fit; label: string }[] = [
-  { value: 'contain', label: 'FIT' },
-  { value: 'cover', label: 'FILL' },
-  { value: 'fill', label: 'STRETCH' },
+type Fit = 'contain' | 'cover' | 'zoom' | 'fill';
+const FITS: { value: Fit; label: string; name: string }[] = [
+  { value: 'contain', label: 'FIT', name: 'Fit to screen' },
+  { value: 'cover', label: 'FILL', name: 'Fill screen' },
+  // Most IPTV movies are 16:9 files with black bars burned into the picture (wide films), so Fit and
+  // Fill look the same on a 16:9 TV. Zoom enlarges the picture to cut those bars off.
+  { value: 'zoom', label: 'ZOOM', name: 'Zoom (removes black bars)' },
+  { value: 'fill', label: 'STRETCH', name: 'Stretch' },
 ];
+const ZOOM_SCALE = 1.34;
 
 export interface EpisodeOption {
   id: string;
@@ -116,6 +120,13 @@ export function VodPlayer({
   const [seekFocused, setSeekFocused] = useState(false);
   const [activity, setActivity] = useState(0);
   const [osd, setOsd] = useState<{ amount: number; at: number } | null>(null);
+  // Briefly names the picture mode after FIT is pressed, so the change is noticeable.
+  const [fitToast, setFitToast] = useState<{ name: string; at: number } | null>(null);
+  useEffect(() => {
+    if (!fitToast) return;
+    const timer = setTimeout(() => setFitToast(null), 1500);
+    return () => clearTimeout(timer);
+  }, [fitToast]);
   // Remote scrubbing target in seconds: shown on the bar, sought once the presses stop.
   const [scrub, setScrub] = useState<number | null>(null);
   const scrubStreak = useRef({ count: 0, at: 0 });
@@ -262,27 +273,35 @@ export function VodPlayer({
 
   const fitLabel = FITS.find((f) => f.value === fit)!.label;
   const cycleFit = () => {
-    setFit((f) => FITS[(FITS.findIndex((x) => x.value === f) + 1) % FITS.length].value);
+    const next = FITS[(FITS.findIndex((x) => x.value === fit) + 1) % FITS.length];
+    setFit(next.value);
+    setFitToast({ name: next.name, at: Date.now() });
     poke();
   };
 
   return (
     <View style={styles.root}>
-      <VideoSurface
-        ref={surface}
-        uri={uri}
-        isLive={false}
-        title={subtitle ? `${title} · ${subtitle}` : title}
-        artwork={artwork}
-        controls="none"
-        contentFit={fit}
-        startAt={startAt}
-        onProgress={onProgress}
-        onStateChange={onSurfaceState}
-        onTracksChange={setTracks}
-        onEnded={handleEnded}
-        onError={onError}
-      />
+      {/* Zoom scales the whole picture inside a clipped box. */}
+      <View style={[StyleSheet.absoluteFill, styles.clip]}>
+        <View style={[StyleSheet.absoluteFill, fit === 'zoom' && { transform: [{ scale: ZOOM_SCALE }] }]}>
+          <VideoSurface
+            ref={surface}
+            uri={uri}
+            isLive={false}
+            title={subtitle ? `${title} · ${subtitle}` : title}
+            artwork={artwork}
+            controls="none"
+            contentFit={fit === 'zoom' ? 'contain' : fit}
+            scaled={fit === 'zoom'}
+            startAt={startAt}
+            onProgress={onProgress}
+            onStateChange={onSurfaceState}
+            onTracksChange={setTracks}
+            onEnded={handleEnded}
+            onError={onError}
+          />
+        </View>
+      </View>
 
       {/*
         Touch/mouse: tap anywhere to toggle the controls.
@@ -301,6 +320,15 @@ export function VodPlayer({
       {stalled && (
         <View pointerEvents="none" style={styles.center}>
           <ActivityIndicator size="large" color="#fff" />
+        </View>
+      )}
+
+      {fitToast && (
+        <View pointerEvents="none" style={styles.center}>
+          <View style={styles.osd}>
+            <MaterialCommunityIcons name="aspect-ratio" size={24} color="#fff" />
+            <Text style={styles.osdText}>{fitToast.name}</Text>
+          </View>
         </View>
       )}
 
@@ -325,15 +353,28 @@ export function VodPlayer({
 
       {visible && (
         <>
-          <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0.75)', 'transparent']} style={styles.top}>
-            <Text style={styles.title} numberOfLines={1}>
-              {title}
-            </Text>
-            {!!subtitle && (
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {subtitle}
-              </Text>
-            )}
+          <LinearGradient pointerEvents="box-none" colors={['rgba(0,0,0,0.75)', 'transparent']} style={styles.top}>
+            <View style={styles.topRow} pointerEvents="box-none">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Back"
+                onPress={onBack}
+                onFocus={poke}
+                style={({ pressed, focused }) => [styles.back, focused && styles.backFocused, pressed && { opacity: 0.7 }]}
+              >
+                <Ionicons name="arrow-back" size={24} color="#fff" />
+              </Pressable>
+              <View style={styles.topText} pointerEvents="none">
+                <Text style={styles.title} numberOfLines={1}>
+                  {title}
+                </Text>
+                {!!subtitle && (
+                  <Text style={styles.subtitle} numberOfLines={1}>
+                    {subtitle}
+                  </Text>
+                )}
+              </View>
+            </View>
           </LinearGradient>
 
           <LinearGradient pointerEvents="box-none" colors={['transparent', 'rgba(0,0,0,0.6)', 'rgba(0,0,0,0.92)']} style={styles.bottom}>
@@ -742,6 +783,11 @@ const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   top: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl * 1.5 },
   title: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  clip: { overflow: 'hidden', backgroundColor: '#000' },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  topText: { flex: 1 },
+  back: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)', borderWidth: 2, borderColor: 'transparent' },
+  backFocused: { borderColor: colors.primary, backgroundColor: colors.primaryDim, transform: [{ scale: 1.1 }] },
   subtitle: { color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 2 },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.xxl, paddingTop: spacing.xxl * 2, paddingBottom: spacing.lg },
   timeRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
