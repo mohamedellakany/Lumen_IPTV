@@ -9,6 +9,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TVFocusGuideView,
   View,
   type LayoutChangeEvent,
 } from 'react-native';
@@ -23,7 +24,7 @@ import { Text } from '@/components/Text';
 const SEEK_SECONDS = 15;
 const HIDE_AFTER_MS = 5000;
 // The "Next episode" card appears this many seconds before an episode ends.
-const UP_NEXT_LEAD_SECONDS = 30;
+const UP_NEXT_LEAD_SECONDS = 60;
 /** Label for finished episodes in the Episodes list; shown in red. */
 export const WATCHED = 'Watched';
 // Remote scrubbing: presses closer together than this count as one continuous "hold".
@@ -617,20 +618,24 @@ function SeekBar({
     </>
   );
 
-  // TV: a focusable bar driven by the remote (left/right scrub, handled by the player).
+  // TV: a focusable bar driven by the remote (left/right scrub, handled by the player). Left/right must
+  // not move the highlight to other buttons (e.g. the back arrow), so focus is trapped sideways; up/down
+  // still leave the bar.
   if (isTV) {
     return (
-      <Pressable
-        accessibilityLabel="Progress. Use left and right to move through the video; hold to go faster."
-        disabled={!onSeek || !duration}
-        focusable={!!onSeek}
-        onFocus={() => onFocusChange?.(true)}
-        onBlur={() => onFocusChange?.(false)}
-        onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
-        style={styles.seekHit}
-      >
-        {body}
-      </Pressable>
+      <TVFocusGuideView trapFocusLeft trapFocusRight>
+        <Pressable
+          accessibilityLabel="Progress. Use left and right to move through the video; hold to go faster."
+          disabled={!onSeek || !duration}
+          focusable={!!onSeek}
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => onFocusChange?.(false)}
+          onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
+          style={styles.seekHit}
+        >
+          {body}
+        </Pressable>
+      </TVFocusGuideView>
     );
   }
 
