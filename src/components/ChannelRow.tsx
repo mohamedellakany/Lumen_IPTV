@@ -17,11 +17,13 @@ interface Props {
   preferredFocus?: boolean;
   onPress: (channel: LiveChannel) => void;
   onToggleFavorite: (channel: LiveChannel) => void;
+  /** Hold OK / long-press: e.g. remove from Recently watched. */
+  onLongPress?: (channel: LiveChannel) => void;
   /** Ref to the row's main button, e.g. as a TV focus destination. */
   ref?: Ref<ComponentRef<typeof Pressable>>;
 }
 
-export const ChannelRow = memo(function ChannelRow({ channel, favorite, active, preferredFocus, onPress, onToggleFavorite, ref }: Props) {
+export const ChannelRow = memo(function ChannelRow({ channel, favorite, active, preferredFocus, onPress, onToggleFavorite, onLongPress, ref }: Props) {
   return (
     <View style={[styles.row, active && styles.active]}>
       <Pressable
@@ -30,6 +32,7 @@ export const ChannelRow = memo(function ChannelRow({ channel, favorite, active, 
         accessibilityLabel={channel.name}
         hasTVPreferredFocus={preferredFocus}
         onPress={() => onPress(channel)}
+        onLongPress={onLongPress ? () => onLongPress(channel) : undefined}
         style={({ pressed, focused }) => [styles.main, pressed && { opacity: 0.7 }, focused && styles.mainFocused]}
       >
         {channel.num !== undefined && <Text style={styles.num}>{channel.num}</Text>}

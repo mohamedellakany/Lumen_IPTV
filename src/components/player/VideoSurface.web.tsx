@@ -183,6 +183,10 @@ export function VideoSurface({
           const target = v && seekTarget(seconds, v.duration);
           if (v && target !== null) v.currentTime = target;
         },
+        setVolume: (volume) => {
+          const v = video();
+          if (v) v.volume = Math.min(1, Math.max(0, volume));
+        },
         // Track switching isn't wired up in the browser build; the mobile/TV apps support it.
         getTracks: () => ({ audio: [], subtitles: [] }),
         setAudioTrack: () => {},

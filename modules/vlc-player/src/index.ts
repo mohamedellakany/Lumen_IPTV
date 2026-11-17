@@ -26,6 +26,8 @@ export interface VlcPlayerViewRef {
   setAudioTrack(id: number): Promise<void>;
   /** -1 turns subtitles off. */
   setSubtitleTrack(id: number): Promise<void>;
+  /** 0–1. */
+  setVolume(volume: number): Promise<void>;
 }
 
 export type VlcPlayerViewProps = ViewProps & {

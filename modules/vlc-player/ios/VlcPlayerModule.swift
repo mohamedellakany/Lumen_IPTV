@@ -43,6 +43,9 @@ public class VlcPlayerModule: Module {
       AsyncFunction("setSubtitleTrack") { (view: VlcPlayerView, id: Int) in
         view.setSubtitleTrack(Int32(id))
       }
+      AsyncFunction("setVolume") { (view: VlcPlayerView, volume: Double) in
+        view.setVolume(volume)
+      }
     }
   }
 }

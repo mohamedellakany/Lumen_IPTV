@@ -11,6 +11,8 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { LoadingState } from '@/components/StateViews';
 import { VideoSurface } from '@/components/player/VideoSurface';
 import { ResumePrompt } from '@/components/player/ResumePrompt';
+import { useSwipeAdjust } from '@/components/player/SwipeAdjust';
+import type { VideoSurfaceHandle } from '@/components/player/types';
 import { VodPlayer, WATCHED } from '@/components/player/VodPlayer';
 import { checkStream, describePlayerError, findAlternativeStream } from '@/api/streamCheck';
 import { useCatalog, useMovieInfo, useProvider, useSeriesInfo, useShortEpg } from '@/hooks/useCatalog';
@@ -227,6 +229,10 @@ export default function PlayerScreen() {
     } else flashInfo();
   }, kind === 'live');
 
+  // Full-screen live TV on phones/tablets: swipe gestures for volume and brightness.
+  const liveSurface = useRef<VideoSurfaceHandle>(null);
+  const liveSwipe = useSwipeAdjust({ onTap: flashInfo, onVolume: (volume) => liveSurface.current?.setVolume(volume) });
+
   const onChannelPress = useCallback(
     (c: LiveChannel) => (c.id === id ? enterFullscreen() : router.setParams({ id: c.id })),
     [id, enterFullscreen, router],
@@ -436,6 +442,7 @@ export default function PlayerScreen() {
         <View style={styles.videoArea}>
           {playable ? (
             <VideoSurface
+              ref={liveSurface}
               key={streamKey}
               uri={playable.uri}
               isLive={playable.isLive}
@@ -458,14 +465,20 @@ export default function PlayerScreen() {
           {fullscreen && (
             // On TV this holds the remote's focus in full screen; without a focused view Android
             // doesn't deliver ▲/▼/OK to the app.
-            <Pressable
-              accessibilityLabel="Show channel info"
-              focusable={isTV}
-              hasTVPreferredFocus={isTV}
-              style={StyleSheet.absoluteFill}
-              onPress={flashInfo}
-            />
+            isTV ? (
+              <Pressable
+                accessibilityLabel="Show channel info"
+                focusable
+                hasTVPreferredFocus
+                style={StyleSheet.absoluteFill}
+                onPress={flashInfo}
+              />
+            ) : (
+              // Phones/tablets: tap for channel info; swipe up/down left for volume, right for brightness.
+              <View accessibilityLabel="Show channel info" style={StyleSheet.absoluteFill} {...liveSwipe.handlers} />
+            )
           )}
+          {fullscreen && liveSwipe.indicator}
           {fullscreen && info.visible && channel && (
             <View pointerEvents="box-none" style={styles.infoBar}>
               {channel.num !== undefined && <Text style={styles.infoNum}>{channel.num}</Text>}

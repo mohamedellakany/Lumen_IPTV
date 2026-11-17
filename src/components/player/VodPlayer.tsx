@@ -16,6 +16,7 @@ import {
 
 import { useRemoteKeys, type RemoteKey } from '@/hooks/useRemoteKeys';
 import { colors, radius, spacing, shade } from '@/theme';
+import { useSwipeAdjust } from './SwipeAdjust';
 import { UpNextCard } from './UpNextCard';
 import { seekTarget, type MediaTrack, type PlaybackState, type TrackInfo, type VideoSurfaceHandle } from './types';
 import { VideoSurface } from './VideoSurface';
@@ -272,6 +273,11 @@ export function VodPlayer({
     return () => sub.remove();
   }, [panel, visible, showUpNext]);
 
+  const swipe = useSwipeAdjust({
+    onTap: () => (visible ? setVisible(false) : show()),
+    onVolume: (volume) => surface.current?.setVolume(volume),
+  });
+
   const fitLabel = FITS.find((f) => f.value === fit)!.label;
   const cycleFit = () => {
     const next = FITS[(FITS.findIndex((x) => x.value === fit) + 1) % FITS.length];
@@ -283,8 +289,10 @@ export function VodPlayer({
   return (
     <View style={styles.root}>
       {/* Zoom scales the whole picture inside a clipped box. */}
-      <View style={[StyleSheet.absoluteFill, styles.clip]}>
-        <View style={[StyleSheet.absoluteFill, fit === 'zoom' && { transform: [{ scale: ZOOM_SCALE }] }]}>
+      {/* collapsable={false}: keep these as real views; otherwise adding the zoom transform rebuilds the
+          view tree and the video view is detached and re-attached (VLC on iOS restarted from 0:00). */}
+      <View collapsable={false} style={[StyleSheet.absoluteFill, styles.clip]}>
+        <View collapsable={false} style={[StyleSheet.absoluteFill, fit === 'zoom' && { transform: [{ scale: ZOOM_SCALE }] }]}>
           <VideoSurface
             ref={surface}
             uri={uri}
@@ -309,14 +317,20 @@ export function VodPlayer({
         TV: while the controls are hidden this layer holds the remote's focus. Android only delivers
         remote key presses to the app when something is focused, so without it OK/◀/▶ would do nothing.
       */}
-      <Pressable
-        key={visible ? 'catcher-idle' : 'catcher-active'}
-        accessibilityLabel={visible ? 'Hide controls' : 'Show controls'}
-        focusable={isTV && !visible && !panel && !showUpNext}
-        hasTVPreferredFocus={isTV && !visible && !panel && !showUpNext}
-        style={StyleSheet.absoluteFill}
-        onPress={() => (visible ? setVisible(false) : show())}
-      />
+      {isPhone ? (
+        // Phones/tablets: tap toggles the controls; swipe up/down on the left for volume, right for brightness.
+        <View accessibilityLabel={visible ? 'Hide controls' : 'Show controls'} style={StyleSheet.absoluteFill} {...swipe.handlers} />
+      ) : (
+        <Pressable
+          key={visible ? 'catcher-idle' : 'catcher-active'}
+          accessibilityLabel={visible ? 'Hide controls' : 'Show controls'}
+          focusable={isTV && !visible && !panel && !showUpNext}
+          hasTVPreferredFocus={isTV && !visible && !panel && !showUpNext}
+          style={StyleSheet.absoluteFill}
+          onPress={() => (visible ? setVisible(false) : show())}
+        />
+      )}
+      {swipe.indicator}
 
       {stalled && (
         <View pointerEvents="none" style={styles.center}>

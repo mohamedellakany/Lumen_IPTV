@@ -12,17 +12,7 @@ import { useSettings } from '@/store/settings';
 import { colors, fontFamily, radius, spacing, THEME_ID, THEMES, tvFocus } from '@/theme';
 import { formatDate } from '@/utils/format';
 import { Text } from '@/components/Text';
-
-function confirmAction(title: string, message: string, action: string, onConfirm: () => void) {
-  if (Platform.OS === 'web') {
-    if (window.confirm(`${title}\n\n${message}`)) onConfirm();
-    return;
-  }
-  Alert.alert(title, message, [
-    { text: 'Cancel', style: 'cancel' },
-    { text: action, style: 'destructive', onPress: onConfirm },
-  ]);
-}
+import { confirmAction } from '@/utils/confirm';
 
 export default function SettingsScreen() {
   const router = useRouter();

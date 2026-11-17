@@ -56,6 +56,7 @@ export function VlcSurface({
       getTracks: () => tracks.current,
       setAudioTrack: (id) => void viewRef.current?.setAudioTrack(Number(id)),
       setSubtitleTrack: (id) => void viewRef.current?.setSubtitleTrack(id === undefined ? -1 : Number(id)),
+      setVolume: (volume) => void viewRef.current?.setVolume(volume),
     }),
     [],
   );

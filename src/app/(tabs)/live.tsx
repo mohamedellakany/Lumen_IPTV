@@ -15,6 +15,7 @@ import { markOpeningChild, useSectionEntry } from '@/hooks/useSectionEntry';
 import { libraryActions, useLibrary } from '@/store/library';
 import { colors, spacing } from '@/theme';
 import { ThemeBackdrop } from '@/components/ThemeBackdrop';
+import { confirmAction } from '@/utils/confirm';
 
 const ALL = '__all';
 const FAVORITES = '__fav';
@@ -70,7 +71,8 @@ export default function LiveScreen() {
 
   // Opening the section: show Recently watched (if any) and put the remote on it.
   const [focusSignal, setFocusSignal] = useState(0);
-  const hasRecent = library.recents.some((r) => r.kind === 'live' && byId.has(r.id));
+  // Decided from the watch history alone, so it's right even before the channel list has loaded.
+  const hasRecent = library.recents.some((r) => r.kind === 'live');
   useSectionEntry(() => {
     setSelected(hasRecent ? RECENT : ALL);
     setFocusSignal((n) => n + 1);
@@ -90,6 +92,15 @@ export default function LiveScreen() {
       });
     },
     [router, shownCategory],
+  );
+
+  // Recently watched: hold OK (TV) or long-press a channel to remove it from the list.
+  const removeFromRecent = useCallback(
+    (c: LiveChannel) =>
+      confirmAction('Remove from Recently watched', `Remove "${c.name}" from Recently watched?`, 'Remove', () =>
+        libraryActions().removeRecent(`live:${c.id}`),
+      ),
+    [],
   );
 
   const toggleFavorite = useCallback(
@@ -118,7 +129,12 @@ export default function LiveScreen() {
         renderItem={({ item, index }) => (
           <ChannelRow
             ref={index === 0 ? setFirstChannel : undefined}
-            channel={item} favorite={!!library.favorites[`live:${item.id}`]} onPress={play} onToggleFavorite={toggleFavorite} />
+            channel={item}
+            favorite={!!library.favorites[`live:${item.id}`]}
+            onPress={play}
+            onToggleFavorite={toggleFavorite}
+            onLongPress={shownCategory === RECENT ? removeFromRecent : undefined}
+          />
         )}
         getItemLayout={(_, index) => ({ length: CHANNEL_ROW_HEIGHT, offset: CHANNEL_ROW_HEIGHT * index, index })}
         initialNumToRender={20}

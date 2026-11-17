@@ -17,6 +17,10 @@ function setTrack(player: VideoPlayer, kind: 'audioTrack' | 'subtitleTrack', tra
   player[kind] = track;
 }
 
+function setPlayerVolume(player: VideoPlayer, volume: number) {
+  player.volume = volume;
+}
+
 function readTracks(player: VideoPlayer): TrackInfo {
   const audio = player.availableAudioTracks ?? [];
   const subs = player.availableSubtitleTracks ?? [];
@@ -177,6 +181,7 @@ function AppleSurface({
         const list = player.availableSubtitleTracks ?? [];
         setTrack(player, 'subtitleTrack', id === undefined ? null : (list.find((t, i) => trackId(t, i) === id) ?? null));
       },
+      setVolume: (volume) => setPlayerVolume(player, volume),
       startPictureInPicture: () => {
         viewRef.current?.startPictureInPicture().catch(() => {});
       },

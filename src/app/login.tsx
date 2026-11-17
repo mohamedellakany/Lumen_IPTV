@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View, type TextInputProps } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View, type TextInputProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { normalizeHost, parseXtreamM3uUrl } from '@/api/parsers';
@@ -16,21 +16,11 @@ import { useProfiles } from '@/store/profiles';
 import { colors, fontFamily, radius, shade, spacing, tvFocus } from '@/theme';
 import { Text } from '@/components/Text';
 import { PosterWall } from '@/components/PosterWall';
+import { confirmAction } from '@/utils/confirm';
 
 type Mode = 'xtream' | 'm3u';
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-
-function confirm(title: string, message: string, onConfirm: () => void) {
-  if (Platform.OS === 'web') {
-    if (window.confirm(`${title}\n\n${message}`)) onConfirm();
-    return;
-  }
-  Alert.alert(title, message, [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: onConfirm },
-  ]);
-}
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -92,7 +82,7 @@ export default function LoginScreen() {
   };
 
   const removeProfile = (profile: Profile) =>
-    confirm('Delete playlist', `Remove "${profile.name}" and its favorites and history from this device?`, () => {
+    confirmAction('Delete playlist', `Remove "${profile.name}" and its favorites and history from this device?`, 'Delete', () => {
       remove(profile.id);
       useLibraryStore.getState().removeProfile(profile.id);
       queryClient.removeQueries({ queryKey: [profile.id] });

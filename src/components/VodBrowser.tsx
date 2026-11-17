@@ -14,11 +14,12 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { filterByQuery, sortItems, useCatalog } from '@/hooks/useCatalog';
 import { useLayout } from '@/hooks/useLayout';
 import { markOpeningChild, useSectionEntry } from '@/hooks/useSectionEntry';
-import { inProgressFraction, useLibrary } from '@/store/library';
+import { inProgressFraction, useLibrary, keyOf, libraryActions } from '@/store/library';
 import { useSettings, type SortMode } from '@/store/settings';
 import { colors, spacing } from '@/theme';
 import { openMedia } from '@/utils/navigation';
 import { ThemeBackdrop } from '@/components/ThemeBackdrop';
+import { confirmAction } from '@/utils/confirm';
 
 const ALL = '__all';
 const ROWS = 4;
@@ -39,11 +40,14 @@ interface CellProps {
   favorite: boolean;
   progress?: number;
   onOpen: (item: Movie | Series) => void;
+  /** Hold OK / long-press: e.g. remove from Recently watched. */
+  onLongPress?: (item: Movie | Series) => void;
   ref?: Ref<ComponentRef<typeof Pressable>>;
 }
 
-const GridCell = memo(function GridCell({ item, width, favorite, progress, onOpen, ref }: CellProps) {
+const GridCell = memo(function GridCell({ item, width, favorite, progress, onOpen, onLongPress, ref }: CellProps) {
   const onPress = useCallback(() => onOpen(item), [onOpen, item]);
+  const onHold = useCallback(() => onLongPress?.(item), [onLongPress, item]);
   return (
     <PosterCard
       ref={ref}
@@ -54,6 +58,7 @@ const GridCell = memo(function GridCell({ item, width, favorite, progress, onOpe
       favorite={favorite}
       progress={progress}
       onPress={onPress}
+      onLongPress={onLongPress ? onHold : undefined}
     />
   );
 });
@@ -100,9 +105,11 @@ export function VodBrowser({ kind }: { kind: 'movie' | 'series' }) {
     return list;
   }, [library.recents, byId, kind]);
 
-  // Opening the section: show Recently watched (if any) and put the remote on it.
+  // Opening the section: show Recently watched (if anything was watched) and put the remote on it.
+  // Decided from the watch history alone, so it's right even before the catalog has finished loading.
+  const hasRecent = library.recents.some((r) => (kind === 'movie' ? r.kind === 'movie' : r.kind === 'episode' || r.kind === 'series'));
   useSectionEntry(() => {
-    setSelected(recentItems.length ? RECENT : ALL);
+    setSelected(hasRecent ? RECENT : ALL);
     setFocusSignal((n) => n + 1);
   });
 
@@ -157,6 +164,18 @@ export function VodBrowser({ kind }: { kind: 'movie' | 'series' }) {
     [router],
   );
 
+  // Recently watched: hold OK (TV) or long-press to remove a title. For series this clears all its episodes.
+  const removeFromRecent = useCallback(
+    (item: Movie | Series) =>
+      confirmAction('Remove from Recently watched', `Remove "${item.name}" from Recently watched?`, 'Remove', () => {
+        const keys = library.recents
+          .filter((r) => (kind === 'movie' ? r.kind === 'movie' && r.id === item.id : (r.kind === 'episode' && r.seriesId === item.id) || (r.kind === 'series' && r.id === item.id)))
+          .map(keyOf);
+        for (const key of keys) libraryActions().removeRecent(key);
+      }),
+    [library.recents, kind],
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: Movie | Series; index: number }) => (
       <GridCell
@@ -166,14 +185,17 @@ export function VodBrowser({ kind }: { kind: 'movie' | 'series' }) {
         favorite={!!library.favorites[`${kind}:${item.id}`]}
         progress={kind === 'movie' ? inProgressFraction(library.progress[`movie:${item.id}`]) : undefined}
         onOpen={onOpen}
+        onLongPress={shownCategory === RECENT ? removeFromRecent : undefined}
       />
     ),
-    [cellWidth, library.favorites, library.progress, kind, onOpen],
+    [cellWidth, library.favorites, library.progress, kind, onOpen, shownCategory, removeFromRecent],
   );
 
   const body = () => {
     if (isLoading) return <LoadingState message={`Loading ${label.toLowerCase()}…`} />;
     if (error) return <ErrorState error={error} onRetry={refetch} />;
+    // Wait for the grid's size, so it's drawn once with the final number of columns.
+    if (!gridSize.width) return null;
     if (visible.length === 0) {
       if (shownCategory === RECENT && !shownQuery) {
         return (

@@ -34,6 +34,8 @@ export interface VideoSurfaceHandle {
   /** Pass undefined to turn subtitles off. */
   setSubtitleTrack(id: string | undefined): void;
   startPictureInPicture?(): void;
+  /** Playback volume inside the app, 0–1 (the device's own volume still applies on top). */
+  setVolume(volume: number): void;
 }
 
 export interface VideoSurfaceProps {

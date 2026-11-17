@@ -25,6 +25,7 @@ class VlcPlayerView: ExpoView {
   private var reportedEnd = false
   private var reportedError = false
   private var lastTracksKey = ""
+  private var resumeWhenShown = false
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -49,14 +50,17 @@ class VlcPlayerView: ExpoView {
 
   override func didMoveToWindow() {
     super.didMoveToWindow()
-    // Leaving the screen: stop decoding and networking right away instead of waiting for deinit.
+    // React Native can briefly take this view off screen and put it back (e.g. when a parent view is
+    // rebuilt after a style change). Pause and carry on, rather than stopping, which would restart the
+    // video from the beginning. Closing the player releases the view, and deinit stops playback.
     if window == nil {
-      timer?.invalidate()
-      timer = nil
-      player.stop()
-      loadedUri = nil
+      resumeWhenShown = player.isPlaying
+      player.pause()
     } else if loadedUri == nil {
       applyProps()
+    } else if resumeWhenShown {
+      resumeWhenShown = false
+      player.play()
     }
   }
 
@@ -95,6 +99,11 @@ class VlcPlayerView: ExpoView {
   func setAudioTrack(_ id: Int32) {
     player.currentAudioTrackIndex = id
     lastTracksKey = ""
+  }
+
+  /// 0–1; libVLC's scale is 0–200 with 100 as normal.
+  func setVolume(_ volume: Double) {
+    player.audio?.volume = Int32(max(0, min(1, volume)) * 100)
   }
 
   /// -1 turns subtitles off.
